@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Teacher {
+  id         String   @id @default(uuid())
+  name       String
+  email      String   @unique
+  password   String   // bcrypt hash
+  profilePic String?
+  subjects   String[]
+  createdAt  DateTime @default(now())
+  lectures   Lecture[]
+}
+
+model Classroom {
+  id       String    @id @default(uuid())
+  code     String    @unique // "CL-101"
+  building String?
+  lectures Lecture[]
+}
+
+model Lecture {
+  id          String    @id @default(uuid())
+  subject     String
+  startTime   String    // "11:30 AM"
+  endTime     String    // "12:30 PM"
+  dayOfWeek   Int       // 0=Sun ... 6=Sat, for "today's lectures" filtering
+  isTemporary Boolean   @default(false)
+  teacherId   String
+  teacher     Teacher   @relation(fields: [teacherId], references: [id])
+  classroomId String
+  classroom   Classroom @relation(fields: [classroomId], references: [id])
+  roster      StudentLecture[]
+  sessions    AttendanceSession[]
+}
+
+model Student {
+  id       String   @id @default(uuid())
+  name     String
+  rollNo   String   @unique
+  section  String?
+  roster   StudentLecture[]
+  records  AttendanceRecord[]
+}
+
+model StudentLecture { // which students belong to which lecture
+  id        String  @id @default(uuid())
+  studentId String
+  lectureId String
+  student   Student @relation(fields: [studentId], references: [id])
+  lecture   Lecture @relation(fields: [lectureId], references: [id])
+  @@unique([studentId, lectureId])
+}
+
+model AttendanceSession {
+  id           String    @id @default(uuid())
+  lectureId    String
+  lecture      Lecture   @relation(fields: [lectureId], references: [id])
+  section      String?
+  qrToken      String    @unique
+  status       String    // "active" | "closed"
+  startedAt    DateTime  @default(now())
+  closedAt     DateTime?
+  presentCount Int?
+  totalCount   Int?
+  strengthPct  Float?
+  records      AttendanceRecord[]
+}
+
+model AttendanceRecord {
+  id        String    @id @default(uuid())
+  sessionId String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id])
+  studentId String
+  student   Student   @relation(fields: [studentId], references: [id])
+  status    String    // "absent" | "present" | "late"
+  markedAt  DateTime?
+  method    String?   // "qr" | "manual"
+  @@unique([sessionId, studentId])
+}
