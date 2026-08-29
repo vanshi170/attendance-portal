@@ -21,7 +21,6 @@ async function main() {
       name: 'Demo Teacher',
       email: 'teacher.demo@brightfuture.edu',
       password: hashedPassword,
-      department: 'Computer Science',
     },
   });
 
