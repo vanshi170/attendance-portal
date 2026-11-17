@@ -1,5 +1,8 @@
 # 🎓 Teacher Attendance Portal
 
+> 📱 **Looking to build the Student Camera QR Scanner Web App?**  
+> Check out the complete developer specification and AI prompt blueprint in [SCANNER_APP_SPEC.md](SCANNER_APP_SPEC.md).
+
 A modern, full-stack web application designed for educational institutions to streamline the attendance tracking process. It features a real-time QR code scanning system that eliminates proxy attendance, complete with a comprehensive dashboard for teachers to manage lectures, timetables, and student analytics.
 
 ![Teacher Portal Dashboard Placeholder](https://via.placeholder.com/1000x500.png?text=Teacher+Portal+Dashboard)
@@ -87,7 +90,7 @@ npm run dev
 
 Visit `http://localhost:3000` to access the application. Log in with the seeded credentials (if using the demo seed):
 - **Email**: `teacher.demo@brightfuture.edu`
-- **Password**: `Teacher@2026`
+- **Password**: `<your-configured-password>`
 
 ## 🌐 Production Deployment
 - **Database**: Hosted on [Neon Serverless Postgres](https://neon.tech/)

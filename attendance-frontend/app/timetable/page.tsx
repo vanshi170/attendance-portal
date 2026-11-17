@@ -30,7 +30,8 @@ const DAYS = [
   { id: 3, name: 'WED' },
   { id: 4, name: 'THU' },
   { id: 5, name: 'FRI' },
-  { id: 6, name: 'SAT' }
+  { id: 6, name: 'SAT' },
+  { id: 0, name: 'SUN' }
 ];
 
 const AVAILABLE_SUBJECTS = [
@@ -217,7 +218,7 @@ export default function TimetablePage() {
         Create Lecture
       </h1>
       
-      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
+      <div className="max-w-[1600px] mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-5">
         {DAYS.map((day) => {
           const dayLectures = lectures.filter(l => l.dayOfWeek === day.id);
           
