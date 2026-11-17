@@ -119,6 +119,75 @@ export default function DashboardPage() {
             Timetable
           </Link>
         </div>
+  
+        {/* Start Attendance Card */}
+        <Card className="bg-white/80 backdrop-blur-xl border border-thistle shadow-xl text-ink">
+          <CardHeader>
+            <CardTitle className="text-xl font-sora">Start Attendance Session</CardTitle>
+            <CardDescription className="text-muted">
+              Select an open lecture from your schedule. Only lectures within their scheduled hours appear below.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {eligibleLectures.length === 0 ? (
+              <div className="bg-canvas rounded-2xl p-6 text-center border border-thistle space-y-2">
+                <p className="text-ink font-medium">No lectures eligible right now.</p>
+                <p className="text-muted text-xs leading-relaxed max-w-sm mx-auto">
+                  Attendance can only be opened during scheduled lecture hours (e.g. 9:00 AM – 11:00 AM), and completed sessions cannot be reopened.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-ink">Select Lecture</label>
+                  <select
+                    className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
+                    value={selectedLectureId}
+                    onChange={(e) => setSelectedLectureId(e.target.value)}
+                  >
+                    {eligibleLectures.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.subject} · {l.startTime} – {l.endTime}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-ink">Select Section</label>
+                  <select
+                    className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
+                    value={selectedSection}
+                    onChange={(e) => setSelectedSection(e.target.value)}
+                  >
+                    {['A', 'B', 'C', 'D', 'E'].map((sec) => (
+                      <option key={sec} value={sec}>
+                        Section {sec}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedLecture && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-ink">Classroom</label>
+                    <div className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 flex items-center cursor-not-allowed">
+                      {selectedLecture.classroom?.code || 'CL'}
+                    </div>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleStartAttendance}
+                  disabled={starting || !selectedLectureId}
+                  className="w-full bg-hot-pink hover:bg-hot-pink/90 text-white rounded-full h-12 font-medium mt-4 shadow-md transition-transform hover:scale-[1.01]"
+                >
+                  {starting ? 'Starting Session...' : 'Start Attendance'}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Today's Lectures Status Cards */}
         <div className="space-y-3">
@@ -201,74 +270,6 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Start Attendance Card */}
-        <Card className="bg-white/80 backdrop-blur-xl border border-thistle shadow-xl text-ink">
-          <CardHeader>
-            <CardTitle className="text-xl font-sora">Start Attendance Session</CardTitle>
-            <CardDescription className="text-muted">
-              Select an open lecture from your schedule. Only lectures within their scheduled hours appear below.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {eligibleLectures.length === 0 ? (
-              <div className="bg-canvas rounded-2xl p-6 text-center border border-thistle space-y-2">
-                <p className="text-ink font-medium">No lectures eligible right now.</p>
-                <p className="text-muted text-xs leading-relaxed max-w-sm mx-auto">
-                  Attendance can only be opened during scheduled lecture hours (e.g. 9:00 AM – 11:00 AM), and completed sessions cannot be reopened.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink">Select Lecture</label>
-                  <select
-                    className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
-                    value={selectedLectureId}
-                    onChange={(e) => setSelectedLectureId(e.target.value)}
-                  >
-                    {eligibleLectures.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.subject} · {l.startTime} – {l.endTime}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-ink">Select Section</label>
-                  <select
-                    className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
-                    value={selectedSection}
-                    onChange={(e) => setSelectedSection(e.target.value)}
-                  >
-                    {['A', 'B', 'C', 'D', 'E'].map((sec) => (
-                      <option key={sec} value={sec}>
-                        Section {sec}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedLecture && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-ink">Classroom</label>
-                    <div className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 flex items-center cursor-not-allowed">
-                      {selectedLecture.classroom?.code || 'CL'}
-                    </div>
-                  </div>
-                )}
-
-                <Button
-                  onClick={handleStartAttendance}
-                  disabled={starting || !selectedLectureId}
-                  className="w-full bg-hot-pink hover:bg-hot-pink/90 text-white rounded-full h-12 font-medium mt-4 shadow-md transition-transform hover:scale-[1.01]"
-                >
-                  {starting ? 'Starting Session...' : 'Start Attendance'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
