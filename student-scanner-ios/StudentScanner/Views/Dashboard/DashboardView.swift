@@ -296,7 +296,7 @@ struct DashboardView: View {
                     TimetableDetailView(urlString: url)
                 }
             }
-            .onChange(of: selectedPhotoItem) { _, newItem in
+            .onChange(of: selectedPhotoItem) { newItem in
                 handleTimetableUpload(item: newItem)
             }
         }
@@ -332,14 +332,26 @@ struct DashboardView: View {
     }
     
     private func handleTimetableUpload(item: PhotosPickerItem?) {
-        guard let item = item, let s = student else { return }
+        guard let item = item, let currentStudent = student else { return }
         isUploadingTimetable = true
         
         Task {
             if let data = try? await item.loadTransferable(type: Data.self),
                let image = UIImage(data: data) {
-                // In a production setup, upload via APIService.shared.uploadPhoto or timetable endpoint
-                // and update appState.currentStudent
+                do {
+                    let uploadedUrl = try await APIService.shared.uploadPhoto(studentId: currentStudent.id, image: image)
+                    await MainActor.run {
+                        var updated = currentStudent
+                        updated.timetableUrl = uploadedUrl
+                        self.appState.updateStudent(student: updated)
+                        self.isUploadingTimetable = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.isUploadingTimetable = false
+                    }
+                }
+            } else {
                 await MainActor.run {
                     self.isUploadingTimetable = false
                 }
