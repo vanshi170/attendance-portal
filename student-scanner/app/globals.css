@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --canvas: #f0f7ff;
+    --surface: #ffffff;
+    --ink: #0f172a;
+    --muted: #64748b;
+    --sky-primary: #0ea5e9;
+    --sky-hover: #0284c7;
+    --sky-border: #bae6fd;
+    --sky-soft: #e0f2fe;
+
+    --status-present: #16a34a;
+    --status-absent: #dc2626;
+
+    --background: var(--canvas);
+    --foreground: var(--ink);
+    --border: var(--sky-border);
+  }
+
+  * {
+    border-color: var(--border);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    touch-action: manipulation;
+    overflow-x: hidden;
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 1;
+  }
+}
+
+.animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* Custom scrollbars for mobile */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #bae6fd;
+  border-radius: 9999px;
+}
+
+/* Full height mobile screen utility handling mobile dynamic address bar */
+.min-h-screen-mobile {
+  min-height: 100vh;
+  min-height: 100dvh;
+}

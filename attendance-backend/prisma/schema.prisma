@@ -41,12 +41,16 @@ model Lecture {
 }
 
 model Student {
-  id       String   @id @default(uuid())
-  name     String
-  rollNo   String   @unique
-  section  String?
-  roster   StudentLecture[]
-  records  AttendanceRecord[]
+  id           String             @id @default(uuid())
+  name         String
+  rollNo       String             @unique
+  section      String?
+  email        String?
+  password     String?
+  photoUrl     String?            // Captured passport profile photo
+  timetableUrl String?            // Stored uploaded timetable
+  roster       StudentLecture[]
+  records      AttendanceRecord[]
 }
 
 model StudentLecture { // which students belong to which lecture
