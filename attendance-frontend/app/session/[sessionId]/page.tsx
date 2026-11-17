@@ -12,6 +12,7 @@ import { StatusBadge, cn } from '../../../components/StatusBadge';
 import { toast } from 'sonner';
 import { Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { StudentAvatar } from '../../../components/StudentAvatar';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:10000';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
@@ -225,11 +226,14 @@ export default function SessionPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="flex items-center justify-between p-4 rounded-xl border border-border bg-white shadow-sm"
+                  className="flex items-center justify-between p-3.5 sm:p-4 rounded-2xl border border-thistle bg-white shadow-sm"
                 >
-                  <div className="flex flex-col">
-                    <span className="font-medium text-ink">{record.student.name}</span>
-                    <span className="text-sm font-plex-mono text-muted">{record.student.rollNo}</span>
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <StudentAvatar name={record.student.name} />
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-semibold text-ink uppercase tracking-tight text-sm sm:text-base truncate">{record.student.name}</span>
+                      <span className="text-xs sm:text-sm font-plex-mono text-muted">{record.student.rollNo}</span>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-3">

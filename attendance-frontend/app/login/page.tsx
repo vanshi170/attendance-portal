@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../lib/store';
 import { fetchApi } from '../../lib/api';
@@ -15,38 +15,62 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [wakingUp, setWakingUp] = useState(false);
 
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
 
+  // Pre-warm backend and prefetch dashboard routes on mount
+  useEffect(() => {
+    // Fire an immediate non-blocking health check to wake up cloud server (Render)
+    fetchApi('/health').catch(() => {});
+    
+    // Prefetch destination routes for instantaneous transition
+    router.prefetch('/dashboard');
+    router.prefetch('/timetable');
+  }, [router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setWakingUp(false);
+
+    // If server takes longer than 3 seconds (cold start), inform the user
+    const wakeTimer = setTimeout(() => {
+      setWakingUp(true);
+    }, 3000);
 
     try {
       if (isLogin) {
         const data = await fetchApi('/auth/login', {
           method: 'POST',
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ email: email.trim(), password })
         });
+        clearTimeout(wakeTimer);
         setAuth(data.teacher, data.token);
         toast.success('Logged in successfully');
         router.push('/dashboard');
       } else {
         const data = await fetchApi('/auth/register', {
           method: 'POST',
-          body: JSON.stringify({ name, email, password })
+          body: JSON.stringify({ name: name.trim(), email: email.trim(), password })
         });
+        clearTimeout(wakeTimer);
         localStorage.setItem('isNewUser', 'true');
         setAuth(data.teacher, data.token);
         toast.success('Registration successful. Welcome!');
+        // Instantly navigate to timetable (or dashboard) without hanging
+        router.push('/timetable');
       }
     } catch (err: any) {
+      clearTimeout(wakeTimer);
       toast.error(isLogin ? 'Login Failed' : 'Registration Failed', {
-        description: err.message
+        description: err.message || 'Please check your credentials.'
       });
     } finally {
+      clearTimeout(wakeTimer);
       setLoading(false);
+      setWakingUp(false);
     }
   };
 
@@ -106,19 +130,29 @@ export default function LoginPage() {
                 className="bg-canvas text-ink border border-thistle rounded-full focus-visible:ring-hot-pink h-12 px-6"
               />
             </div>
+
+            {wakingUp && (
+              <div className="text-center text-xs text-hot-pink font-medium animate-pulse py-1">
+                Waking up cloud backend... Ready in a moment.
+              </div>
+            )}
+
             <Button 
               type="submit" 
               disabled={loading}
-              className="w-full rounded-full h-12 bg-hot-pink hover:bg-hot-pink/90 text-white font-medium text-lg mt-2"
+              className="w-full rounded-full h-12 bg-hot-pink hover:bg-hot-pink/90 text-white font-medium text-lg mt-2 shadow-md transition-transform hover:scale-[1.01]"
             >
-              {loading ? 'Please wait...' : (isLogin ? 'Log In' : 'Register')}
+              {loading ? (wakingUp ? 'Waking server...' : 'Please wait...') : (isLogin ? 'Log In' : 'Register')}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm">
             <button 
               type="button" 
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setWakingUp(false);
+              }}
               className="text-muted hover:text-ink hover:no-underline font-medium text-sm"
             >
               {isLogin ? "Don't have an account? Register" : "Already have an account? Log In"}

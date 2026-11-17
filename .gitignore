@@ -1,7 +1,8 @@
 # Node modules
 node_modules/
 */node_modules/
-
+/Poster
+/Sample Dataset
 # Environment variables
 .env
 .env.local

@@ -6,6 +6,7 @@ import { fetchApi } from '../../../../lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../../../components/ui/card';
 import { Button } from '../../../../components/ui/button';
 import { toast } from 'sonner';
+import { StudentAvatar } from '../../../../components/StudentAvatar';
 
 export default function SummaryPage() {
   const { sessionId } = useParams() as { sessionId: string };
@@ -98,12 +99,15 @@ export default function SummaryPage() {
           </h3>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
             {presentStudents.map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-white shadow-sm">
-                <div className="flex flex-col">
-                  <span className="font-medium text-ink text-sm">{r.student.name}</span>
-                  <span className="text-xs font-plex-mono text-muted">{r.student.rollNo}</span>
+              <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-thistle bg-white shadow-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <StudentAvatar name={r.student.name} className="w-10 h-10 rounded-xl" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold text-ink text-sm truncate uppercase">{r.student.name}</span>
+                    <span className="text-xs font-plex-mono text-muted">{r.student.rollNo}</span>
+                  </div>
                 </div>
-                <div className="w-6 h-6 rounded bg-green-100 text-green-600 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-green-100 text-green-600 flex items-center justify-center font-bold text-xs shrink-0">
                   P
                 </div>
               </div>
@@ -122,12 +126,15 @@ export default function SummaryPage() {
           </h3>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
             {absentStudents.map((r: any) => (
-              <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-white shadow-sm">
-                <div className="flex flex-col">
-                  <span className="font-medium text-ink text-sm">{r.student.name}</span>
-                  <span className="text-xs font-plex-mono text-muted">{r.student.rollNo}</span>
+              <div key={r.id} className="flex items-center justify-between p-3 rounded-xl border border-thistle bg-white shadow-sm">
+                <div className="flex items-center gap-3 min-w-0">
+                  <StudentAvatar name={r.student.name} className="w-10 h-10 rounded-xl" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-semibold text-ink text-sm truncate uppercase">{r.student.name}</span>
+                    <span className="text-xs font-plex-mono text-muted">{r.student.rollNo}</span>
+                  </div>
                 </div>
-                <div className="w-6 h-6 rounded bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs shrink-0">
                   A
                 </div>
               </div>

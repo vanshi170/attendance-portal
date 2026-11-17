@@ -3,6 +3,7 @@ import { prisma } from '../utils/prisma';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 import { io } from '../index';
 import jwt from 'jsonwebtoken';
+import { getIstTodayRange, isTimeWithinWindow } from './lectures.routes';
 
 const router = Router();
 
@@ -11,8 +12,56 @@ router.post('/start', requireAuth, async (req: AuthRequest, res) => {
   try {
     const { lectureId, section } = req.body;
     
-    if (!section) {
-      return res.status(400).json({ error: 'Section is required' });
+    if (!lectureId || !section) {
+      return res.status(400).json({ error: 'Lecture ID and Section are required' });
+    }
+
+    const lecture = await prisma.lecture.findUnique({
+      where: { id: String(lectureId) },
+      include: { classroom: true }
+    });
+
+    if (!lecture) {
+      return res.status(404).json({ error: 'Lecture not found' });
+    }
+
+    if (lecture.teacherId !== req.teacher?.id) {
+      return res.status(403).json({ error: 'Unauthorized for this lecture' });
+    }
+
+    const { startOfDay, endOfDay, currentMinutes, dayOfWeek } = getIstTodayRange();
+
+    // 1. Day of week validation
+    if (lecture.dayOfWeek !== dayOfWeek) {
+      return res.status(400).json({
+        error: 'Attendance can only be opened on the scheduled day for this lecture.'
+      });
+    }
+
+    // 2. Time window validation: Can only be opened between startTime and endTime
+    const inWindow = isTimeWithinWindow(lecture.startTime, lecture.endTime, currentMinutes);
+    if (!inWindow) {
+      return res.status(400).json({
+        error: `Attendance can only be opened during scheduled lecture hours (${lecture.startTime} - ${lecture.endTime}).`
+      });
+    }
+
+    // 3. Attendance already done validation: Cannot reopen once closed today
+    const closedSessionToday = await prisma.attendanceSession.findFirst({
+      where: {
+        lectureId: String(lectureId),
+        status: 'closed',
+        startedAt: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      }
+    });
+
+    if (closedSessionToday) {
+      return res.status(400).json({
+        error: 'Attendance for this lecture has already been completed today and cannot be reopened.'
+      });
     }
     
     // Check if session already active
@@ -20,12 +69,13 @@ router.post('/start', requireAuth, async (req: AuthRequest, res) => {
       where: { lectureId: String(lectureId), status: 'active' }
     });
     if (existingSession) {
-      return res.status(400).json({ error: 'Session already active for this lecture' });
+      return res.status(400).json({ error: 'Session already active for this lecture', sessionId: existingSession.id });
     }
 
     // Find students for the given section
     const students = await prisma.student.findMany({
-      where: { section: String(section) }
+      where: { section: String(section) },
+      orderBy: { rollNo: 'asc' }
     });
 
     const qrTokenBase = `session_${lectureId}_${Date.now()}`;
@@ -85,6 +135,48 @@ router.get('/:id/token', requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
+// Get latest session and records for a lecture (for Edit Attendance)
+router.get('/lecture/:lectureId/latest', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const lectureId = String(req.params.lectureId);
+    
+    const lecture = await prisma.lecture.findUnique({
+      where: { id: lectureId },
+      include: { classroom: true }
+    });
+
+    if (!lecture) {
+      return res.status(404).json({ error: 'Lecture not found' });
+    }
+
+    if (lecture.teacherId !== req.teacher?.id) {
+      return res.status(403).json({ error: 'Unauthorized for this lecture' });
+    }
+
+    const session = await prisma.attendanceSession.findFirst({
+      where: { lectureId },
+      orderBy: { startedAt: 'desc' },
+      include: {
+        records: {
+          include: { student: true },
+          orderBy: { student: { rollNo: 'asc' } }
+        },
+        lecture: {
+          include: { classroom: true }
+        }
+      }
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: 'No attendance records found for this lecture' });
+    }
+
+    res.json(session);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get session state
 router.get('/:id', requireAuth, async (req: AuthRequest, res) => {
   try {
@@ -126,15 +218,31 @@ router.patch('/:id/students/:studentId', requireAuth, async (req: AuthRequest, r
       data: { status: String(status), method: 'manual', markedAt: new Date() }
     });
 
+    // Recalculate session statistics and persist
+    const allRecords = await prisma.attendanceRecord.findMany({ where: { sessionId: id } });
+    const totalCount = allRecords.length;
+    const presentCount = allRecords.filter(r => r.status === 'present' || r.status === 'late').length;
+    const strengthPct = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(2)) : 0;
+
+    await prisma.attendanceSession.update({
+      where: { id },
+      data: {
+        totalCount,
+        presentCount,
+        strengthPct
+      }
+    });
+
     // Emit event
     io.to(`session:${id}`).emit('attendance:update', {
       studentId,
       status,
       method: 'manual',
-      timestamp: updated.markedAt
+      timestamp: updated.markedAt,
+      stats: { totalCount, presentCount, strengthPct }
     });
 
-    res.json(updated);
+    res.json({ ...updated, stats: { totalCount, presentCount, strengthPct } });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }

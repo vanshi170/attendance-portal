@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import { prisma } from './utils/prisma';
 
 dotenv.config();
 
@@ -16,6 +17,17 @@ export const io = new Server(server, {
     origin: '*',
     methods: ['GET', 'POST', 'PATCH']
   }
+});
+
+// Fast health check endpoints - respond in <1ms without hitting DB
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: Date.now() });
+});
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', uptime: process.uptime(), timestamp: Date.now() });
+});
+app.get('/', (_req, res) => {
+  res.json({ status: 'ok', service: 'Attendance Portal API', uptime: process.uptime() });
 });
 
 // Middleware
@@ -66,4 +78,24 @@ const PORT = process.env.PORT || 10000;
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Pre-warm database connection on startup to avoid cold-query delays
+  prisma.$connect()
+    .then(() => console.log('Prisma database connection initialized & warmed'))
+    .catch((err) => console.error('Database connection pre-warm warning:', err.message));
+
+  // Self keep-alive ping for cloud free tiers (e.g. Render) to prevent idle sleep
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || process.env.KEEP_ALIVE_URL;
+  if (keepAliveUrl) {
+    const pingTarget = keepAliveUrl.endsWith('/health') ? keepAliveUrl : `${keepAliveUrl}/health`;
+    console.log(`Keep-alive ping enabled for ${pingTarget}`);
+    setInterval(async () => {
+      try {
+        await fetch(pingTarget);
+        console.log(`[Keep-Alive] Ping sent to ${pingTarget}`);
+      } catch (e: any) {
+        console.log(`[Keep-Alive] Ping warning: ${e.message}`);
+      }
+    }, 13 * 60 * 1000); // Every 13 minutes (Render sleeps at 15 minutes)
+  }
 });
