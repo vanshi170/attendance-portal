@@ -12,7 +12,9 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var isInsideGeofence: Bool = false
     @Published var activeTargetName: String = "Test Site (Home)"
     @Published var distanceToTargetMeters: Double = 0.0
-    @Published var isDemoBypassEnabled: Bool = false
+    @Published var isDemoBypassEnabled: Bool = false {
+        didSet { recalculateGeofence() }
+    }
     
     // Target coordinate (defaults to the user's test location)
     @Published var targetCoordinate = CLLocationCoordinate2D(

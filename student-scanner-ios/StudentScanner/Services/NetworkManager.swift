@@ -5,9 +5,13 @@ import SystemConfiguration.CaptiveNetwork
 class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
     
-    @Published var currentSSID: String = "Rishab Thutheja"
+    @Published var currentSSID: String = "Rishab Thutheja" {
+        didSet { validateWifi() }
+    }
     @Published var isWifiValid: Bool = true
-    @Published var isDemoBypassEnabled: Bool = false
+    @Published var isDemoBypassEnabled: Bool = false {
+        didSet { validateWifi() }
+    }
     
     private let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
     private let queue = DispatchQueue(label: "NetworkMonitor")

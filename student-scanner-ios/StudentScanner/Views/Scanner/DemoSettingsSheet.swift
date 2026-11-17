@@ -45,7 +45,10 @@ struct DemoSettingsSheet: View {
                     Toggle("Demo GPS Bypass", isOn: $locationManager.isDemoBypassEnabled)
                 }
                 
-                Section(header: Text("Wi-Fi Validation")) {
+                Section(
+                    header: Text("Wi-Fi Validation"),
+                    footer: Text("Both 'Rishab Thutheja' and 'SYMBI_NGP_STUDENT' are recognized as authorized networks. Select 'Other / Mobile Data' to test network blocking.")
+                ) {
                     Picker("Network SSID", selection: $networkManager.currentSSID) {
                         ForEach(wifiOptions, id: \.self) { ssid in
                             Text(ssid).tag(ssid)
