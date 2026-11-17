@@ -1,6 +1,16 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter, Sora, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from 'sonner';
+import LivingBackground from '../components/LivingBackground';
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const sora = Sora({ subsets: ['latin'], variable: '--font-sora' });
+const plexMono = IBM_Plex_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  variable: '--font-plex-mono',
+});
 
 export const metadata: Metadata = {
   title: 'SIT Student Portal & QR Scanner',
@@ -32,16 +42,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className="antialiased bg-[#f0f7ff] text-slate-900 selection:bg-sky-200">
-        <main className="min-h-screen-mobile flex flex-col">{children}</main>
+      <body
+        className={`${inter.variable} ${sora.variable} ${plexMono.variable} antialiased bg-[#f0f7ff] text-slate-900 selection:bg-sky-200 min-h-screen`}
+      >
+        <LivingBackground />
+        <main className="min-h-screen-mobile flex flex-col relative z-10">{children}</main>
         <Toaster position="top-center" richColors />
       </body>
     </html>
