@@ -230,8 +230,23 @@ class SingleFrontCameraManager: NSObject, ObservableObject, AVCapturePhotoCaptur
     
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard let data = photo.fileDataRepresentation(), let image = UIImage(data: data) else { return }
+        // Un-mirror front camera photo so the passport picture is not inverted horizontally
+        let unmirrored = image.unmirroredPassport()
         DispatchQueue.main.async {
-            self.captureCompletion?(image)
+            self.captureCompletion?(unmirrored)
         }
+    }
+}
+
+extension UIImage {
+    func unmirroredPassport() -> UIImage {
+        UIGraphicsBeginImageContextWithOptions(size, false, scale)
+        guard let context = UIGraphicsGetCurrentContext() else { return self }
+        context.translateBy(x: size.width, y: 0)
+        context.scaleBy(x: -1.0, y: 1.0)
+        draw(in: CGRect(origin: .zero, size: size))
+        let flipped = UIGraphicsGetImageFromCurrentImageContext()
+        UIGraphicsEndImageContext()
+        return flipped ?? self
     }
 }

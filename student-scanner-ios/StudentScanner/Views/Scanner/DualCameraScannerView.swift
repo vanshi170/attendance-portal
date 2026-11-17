@@ -18,7 +18,11 @@ struct DualCameraScannerView: View {
     @State private var laserOffset: CGFloat = -100
     
     var isReadyToCapture: Bool {
-        locationManager.isInsideGeofence && networkManager.isWifiValid && cameraManager.detectedQRToken != nil
+        locationManager.isInsideGeofence &&
+        networkManager.isWifiValid &&
+        cameraManager.detectedQRToken != nil &&
+        cameraManager.isFaceDetected &&
+        cameraManager.isFaceMatched
     }
     
     var body: some View {
@@ -88,13 +92,13 @@ struct DualCameraScannerView: View {
                 }
                 .padding(.bottom, 2)
                 
-                // BOX 1 (Top): Back Camera for Board QR
+                // BOX 1 (Top): Back Camera for Board QR (Vision Barcode Output)
                 ZStack {
                     CameraPreviewView(previewLayer: cameraManager.backPreviewLayer)
                         .cornerRadius(18)
                         .overlay(
                             RoundedRectangle(cornerRadius: 18)
-                                .stroke(Color.sky.opacity(0.5), lineWidth: 1.5)
+                                .stroke(cameraManager.detectedQRToken != nil ? Color.green : Color.sky.opacity(0.5), lineWidth: 1.5)
                         )
                     
                     // QR Targeting Reticle
@@ -109,7 +113,7 @@ struct DualCameraScannerView: View {
                             Rectangle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color.sky.opacity(0), Color.sky, Color.sky.opacity(0)],
+                                        colors: [Color.sky.opacity(0), cameraManager.detectedQRToken != nil ? Color.green : Color.sky, Color.sky.opacity(0)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
@@ -124,8 +128,8 @@ struct DualCameraScannerView: View {
                     VStack {
                         HStack {
                             HStack(spacing: 4) {
-                                Circle().fill(Color.green).frame(width: 6, height: 6)
-                                Text("Back Lens: QR Scanner")
+                                Circle().fill(cameraManager.detectedQRToken != nil ? Color.green : Color.yellow).frame(width: 6, height: 6)
+                                Text("Back Lens: Board QR")
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(.white)
                             }
@@ -137,9 +141,20 @@ struct DualCameraScannerView: View {
                             Spacer()
                             
                             if cameraManager.detectedQRToken != nil {
-                                Text("QR ACQUIRED ✓")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.green)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                    Text("QR ACQUIRED")
+                                }
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.75))
+                                .cornerRadius(8)
+                            } else {
+                                Text("AIM AT BOARD QR")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.8))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
                                     .background(Color.black.opacity(0.6))
@@ -154,29 +169,32 @@ struct DualCameraScannerView: View {
                 .frame(maxHeight: .infinity)
                 .padding(.horizontal, 14)
                 
-                // BOX 2 (Bottom): Front Camera for Student Face Verification
+                // BOX 2 (Bottom): Front Camera for Student Face Biometric Verification
                 ZStack {
                     CameraPreviewView(previewLayer: cameraManager.frontPreviewLayer)
                         .cornerRadius(18)
                         .overlay(
                             RoundedRectangle(cornerRadius: 18)
-                                .stroke(Color.sky.opacity(0.5), lineWidth: 1.5)
+                                .stroke(cameraManager.isFaceMatched ? Color.green : Color.sky.opacity(0.5), lineWidth: 1.5)
                         )
                     
                     // Face Oval Guide
                     ZStack {
                         RoundedRectangle(cornerRadius: 50)
-                            .stroke(cameraManager.isFaceDetected ? Color.green : Color.sky.opacity(0.8), lineWidth: 2)
+                            .stroke(
+                                cameraManager.isFaceMatched ? Color.green : (cameraManager.isFaceDetected ? Color.orange : Color.sky.opacity(0.8)),
+                                lineWidth: 2
+                            )
                             .frame(width: 100, height: 130)
-                            .shadow(color: (cameraManager.isFaceDetected ? Color.green : Color.sky).opacity(0.4), radius: 8)
+                            .shadow(color: (cameraManager.isFaceMatched ? Color.green : Color.sky).opacity(0.4), radius: 8)
                     }
                     
                     // Overlay badges
                     VStack {
                         HStack {
                             HStack(spacing: 4) {
-                                Circle().fill(Color.blue).frame(width: 6, height: 6)
-                                Text("Front Lens: Face Match")
+                                Circle().fill(cameraManager.isFaceMatched ? Color.green : Color.blue).frame(width: 6, height: 6)
+                                Text("Front Lens: Identity")
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(.white)
                             }
@@ -187,10 +205,32 @@ struct DualCameraScannerView: View {
                             
                             Spacer()
                             
-                            if cameraManager.isFaceDetected {
-                                Text("FACE DETECTED ✓")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.green)
+                            if cameraManager.isFaceMatched {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "checkmark.shield.fill")
+                                    Text("IDENTITY VERIFIED")
+                                }
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.green)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.75))
+                                .cornerRadius(8)
+                            } else if cameraManager.isFaceDetected {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                    Text("CHECKING PROFILE...")
+                                }
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(.orange)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.75))
+                                .cornerRadius(8)
+                            } else {
+                                Text("ALIGN FACE IN OVAL")
+                                    .font(.system(size: 9, weight: .semibold))
+                                    .foregroundColor(.white.opacity(0.8))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
                                     .background(Color.black.opacity(0.6))
@@ -219,7 +259,7 @@ struct DualCameraScannerView: View {
                         if isSubmitting {
                             ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
                         } else {
-                            Image(systemName: "camera.fill")
+                            Image(systemName: isReadyToCapture ? "checkmark.circle.fill" : "camera.fill")
                                 .font(.system(size: 16))
                             Text(buttonLabel)
                                 .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -253,6 +293,12 @@ struct DualCameraScannerView: View {
         .onAppear {
             cameraManager.checkPermissionsAndStart()
             locationManager.requestPermission()
+            
+            // Load student profile photo for biometric anti-proxy matching
+            if let photoUrl = appState.currentStudent?.photoUrl, !photoUrl.isEmpty {
+                loadProfilePhoto(from: photoUrl)
+            }
+            
             withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
                 laserOffset = 60
             }
@@ -275,7 +321,30 @@ struct DualCameraScannerView: View {
         if cameraManager.detectedQRToken == nil {
             return "Aim Back Camera at Board QR"
         }
+        if !cameraManager.isFaceDetected {
+            return "Align Face in Front Camera Oval"
+        }
+        if !cameraManager.isFaceMatched {
+            return "Verifying Identity With Profile..."
+        }
         return "Verify & Mark Attendance"
+    }
+    
+    private func loadProfilePhoto(from photoUrl: String) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            var loadedImage: UIImage?
+            if photoUrl.hasPrefix("data:image"),
+               let commaIndex = photoUrl.firstIndex(of: ","),
+               let data = Data(base64Encoded: String(photoUrl[photoUrl.index(after: commaIndex)...])) {
+                loadedImage = UIImage(data: data)
+            } else if let url = URL(string: photoUrl), let data = try? Data(contentsOf: url) {
+                loadedImage = UIImage(data: data)
+            }
+            
+            if let img = loadedImage {
+                cameraManager.setBaselineProfilePhoto(img)
+            }
+        }
     }
     
     private func handleCaptureAndVerify() {

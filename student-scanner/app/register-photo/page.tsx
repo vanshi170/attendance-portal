@@ -77,7 +77,12 @@ function PhotoCaptureContent() {
     const startX = (video.videoWidth - size) / 2;
     const startY = (video.videoHeight - size) / 2;
 
+    // Mirror correction so the captured photo matches reality and preview orientation
+    ctx.save();
+    ctx.translate(480, 0);
+    ctx.scale(-1, 1);
     ctx.drawImage(video, startX, startY, size, size, 0, 0, 480, 480);
+    ctx.restore();
 
     const base64Data = canvas.toDataURL('image/jpeg', 0.85);
     setCapturedPhoto(base64Data);
