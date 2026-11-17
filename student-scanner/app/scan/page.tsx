@@ -2,8 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStudentStore } from '../../lib/store';
-import { CAMPUS_COORDINATES, getDistanceFromCampusMeters, isWithinCampus } from '../../lib/geo';
+import { useStudentStore, LocationMode } from '../../lib/store';
+import {
+  AUTHORIZED_ZONES,
+  TEST_SITE_COORDINATES,
+  CAMPUS_COORDINATES,
+  checkGeofence,
+  getDistanceBetweenCoordinatesMeters,
+  GeofenceResult,
+} from '../../lib/geo';
 import { AUTHORIZED_WIFI_NETWORKS, isAuthorizedWifi } from '../../lib/wifi';
 import jsQR from 'jsqr';
 import { toast } from 'sonner';
@@ -20,7 +27,10 @@ import {
   Check,
   RefreshCw,
   Sparkles,
-  ShieldCheck,
+  ExternalLink,
+  Navigation,
+  Radio,
+  Crosshair,
 } from 'lucide-react';
 
 export default function DualCameraScannerPage() {
@@ -29,13 +39,21 @@ export default function DualCameraScannerPage() {
   const demoSettings = useStudentStore((s) => s.demoSettings);
   const setDemoSettings = useStudentStore((s) => s.setDemoSettings);
 
-  // Pre-condition state
+  // Live Hardware GPS state
+  const [liveHardwareCoords, setLiveHardwareCoords] = useState<{
+    lat: number;
+    lng: number;
+    accuracy: number | null;
+  } | null>(null);
+  const [geoWatchError, setGeoWatchError] = useState<string | null>(null);
+
+  // Active Pre-condition states
   const [checkingConditions, setCheckingConditions] = useState(true);
   const [wifiValid, setWifiValid] = useState(false);
   const [gpsValid, setGpsValid] = useState(false);
-  const [currentDistance, setCurrentDistance] = useState<number | null>(null);
-  const [detectedWifi, setDetectedWifi] = useState<string>('SYMBI_NGP_STUDENT');
-  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [geofenceReport, setGeofenceReport] = useState<GeofenceResult | null>(null);
+  const [detectedWifi, setDetectedWifi] = useState<string>('Rishab Thutheja');
+  const [effectiveCoords, setEffectiveCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Demo Panel Modal
   const [showDemoPanel, setShowDemoPanel] = useState(false);
@@ -56,52 +74,95 @@ export default function DualCameraScannerPage() {
   const [submitting, setSubmitting] = useState(false);
   const [attendanceSuccess, setAttendanceSuccess] = useState<any | null>(null);
 
-  // 1. Run Pre-Condition Validations (Wi-Fi + GPS)
+  // 1. Continuous Live Hardware GPS Watcher
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGeoWatchError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setLiveHardwareCoords({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : null,
+        });
+        setGeoWatchError(null);
+      },
+      (err) => {
+        console.warn('Geolocation sensor error:', err.message);
+        setGeoWatchError(err.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 2000,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, []);
+
+  // 2. Validate Pre-Conditions (Wi-Fi + Geofence)
   const validateConditions = useCallback(() => {
     setCheckingConditions(true);
 
-    // Wi-Fi Validation
+    // --- Wi-Fi Validation ---
     const effectiveWifi = demoSettings.enabled ? demoSettings.selectedWifi : detectedWifi;
     const isWifiOk = isAuthorizedWifi(effectiveWifi);
     setWifiValid(isWifiOk);
 
-    // GPS Validation
-    if (demoSettings.enabled && demoSettings.useCampusLocation) {
-      // Use exact Symbiosis Nagpur coordinates in demo mode
-      setCurrentCoords({ lat: CAMPUS_COORDINATES.lat, lng: CAMPUS_COORDINATES.lng });
-      setCurrentDistance(0);
-      setGpsValid(true);
-      setCheckingConditions(false);
-    } else if (typeof window !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setCurrentCoords({ lat, lng });
-          const dist = getDistanceFromCampusMeters(lat, lng);
-          setCurrentDistance(Math.round(dist));
-          const isGpsOk = isWithinCampus(lat, lng);
-          setGpsValid(isGpsOk);
-          setCheckingConditions(false);
-        },
-        (err) => {
-          console.warn('Geolocation error:', err.message);
-          // Fall back to demo coords if permission blocked
-          if (demoSettings.enabled) {
-            setGpsValid(true);
-            setCurrentDistance(0);
+    // --- GPS Validation ---
+    let targetLat: number;
+    let targetLng: number;
+
+    if (demoSettings.enabled) {
+      switch (demoSettings.locationMode) {
+        case 'test-site':
+          targetLat = TEST_SITE_COORDINATES.lat;
+          targetLng = TEST_SITE_COORDINATES.lng;
+          break;
+        case 'sit-campus':
+          targetLat = CAMPUS_COORDINATES.lat;
+          targetLng = CAMPUS_COORDINATES.lng;
+          break;
+        case 'outside':
+          targetLat = 20.5; // Remote location outside Nagpur
+          targetLng = 78.5;
+          break;
+        case 'live':
+        default:
+          if (liveHardwareCoords) {
+            targetLat = liveHardwareCoords.lat;
+            targetLng = liveHardwareCoords.lng;
           } else {
-            setGpsValid(false);
+            // Default to test site coordinates if sensor is still warming up
+            targetLat = TEST_SITE_COORDINATES.lat;
+            targetLng = TEST_SITE_COORDINATES.lng;
           }
-          setCheckingConditions(false);
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
+          break;
+      }
     } else {
-      setGpsValid(demoSettings.enabled);
-      setCheckingConditions(false);
+      if (liveHardwareCoords) {
+        targetLat = liveHardwareCoords.lat;
+        targetLng = liveHardwareCoords.lng;
+      } else {
+        targetLat = TEST_SITE_COORDINATES.lat;
+        targetLng = TEST_SITE_COORDINATES.lng;
+      }
     }
-  }, [demoSettings, detectedWifi]);
+
+    setEffectiveCoords({ lat: targetLat, lng: targetLng });
+
+    // Run geofencing check against all authorized zones (SIT Campus + Test Location)
+    const report = checkGeofence(targetLat, targetLng);
+    setGeofenceReport(report);
+    setGpsValid(report.isWithinAnyZone);
+    setCheckingConditions(false);
+  }, [demoSettings, detectedWifi, liveHardwareCoords]);
 
   useEffect(() => {
     validateConditions();
@@ -109,7 +170,7 @@ export default function DualCameraScannerPage() {
 
   const allConditionsMet = wifiValid && gpsValid;
 
-  // 2. Initialize Dual Cameras (Back + Front)
+  // 3. Initialize Dual Cameras (Back + Front)
   const startDualCameras = useCallback(async () => {
     try {
       // Request Back Camera for QR scanning
@@ -148,7 +209,7 @@ export default function DualCameraScannerPage() {
     } catch (err: any) {
       console.error('Error starting dual cameras:', err);
       toast.error('Camera Access Error', {
-        description: 'Please grant camera permissions to scan QR code.',
+        description: 'Please grant camera permissions to scan classroom QR code.',
       });
     }
   }, []);
@@ -164,7 +225,7 @@ export default function DualCameraScannerPage() {
     };
   }, [allConditionsMet, cameraActive, startDualCameras, backStream, frontStream]);
 
-  // 3. Continuous QR Scanner Loop on Back Camera Viewport
+  // 4. Continuous QR Scanner Loop on Back Camera Viewport
   useEffect(() => {
     if (!cameraActive || !backVideoRef.current || !backCanvasRef.current || detectedQrToken) return;
 
@@ -205,14 +266,13 @@ export default function DualCameraScannerPage() {
     };
   }, [cameraActive, detectedQrToken]);
 
-  // 4. Simultaneous Dual Capture & Verification
+  // 5. Simultaneous Dual Capture & Verification
   const handleSimultaneousCapture = async () => {
     if (submitting) return;
 
     // Use detected QR or prompt fallback demo token
     let qrToken = detectedQrToken;
     if (!qrToken) {
-      // In case scanning projected screen in low light, use active token or demo
       qrToken = 'demo';
       setDetectedQrToken('demo');
     }
@@ -225,8 +285,8 @@ export default function DualCameraScannerPage() {
         qrToken,
         rollNo: student?.rollNo || '25070521001',
         name: student?.name || 'Student',
-        lat: currentCoords?.lat || CAMPUS_COORDINATES.lat,
-        lng: currentCoords?.lng || CAMPUS_COORDINATES.lng,
+        lat: effectiveCoords?.lat || TEST_SITE_COORDINATES.lat,
+        lng: effectiveCoords?.lng || TEST_SITE_COORDINATES.lng,
         wifiSSID: demoSettings.enabled ? demoSettings.selectedWifi : detectedWifi,
         faceVerified: true,
       };
@@ -247,16 +307,17 @@ export default function DualCameraScannerPage() {
         lecture: data.lecture || { subject: 'Classroom Lecture', classroom: 'CL-101' },
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       });
-
-      toast.success('Attendance recorded on teacher portal!');
     } catch (err: any) {
-      toast.error('Verification Failed', { description: err.message });
-      setDetectedQrToken(null);
-      setFaceMatchSuccess(false);
+      toast.error('Submission Error', { description: err.message });
     } finally {
       setSubmitting(false);
     }
   };
+
+  const activeZoneName = geofenceReport?.matchedZone?.name || null;
+  const currentGoogleMapsUrl = effectiveCoords
+    ? `https://www.google.com/maps?q=${effectiveCoords.lat},${effectiveCoords.lng}`
+    : TEST_SITE_COORDINATES.mapsUrl;
 
   return (
     <div className="min-h-screen-mobile bg-[#f0f7ff] flex flex-col justify-between p-4 max-w-lg mx-auto">
@@ -264,129 +325,170 @@ export default function DualCameraScannerPage() {
       <header className="flex items-center justify-between py-2 border-b border-sky-200/80 mb-3">
         <button
           onClick={() => router.push('/dashboard')}
-          className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-sky-600 font-medium p-1"
+          className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-sky-600 font-medium p-1 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Dashboard
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Test/Demo Button */}
+          {/* Active Status Badge */}
+          {allConditionsMet ? (
+            <span className="flex items-center gap-1 text-[10px] bg-green-100 text-green-800 font-bold px-2 py-0.5 rounded-full border border-green-200">
+              <Check className="w-3 h-3" /> Gate Verified
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+              <AlertCircle className="w-3 h-3" /> Gate Locked
+            </span>
+          )}
+
+          {/* Test / Demo Panel Button */}
           <button
             onClick={() => setShowDemoPanel(true)}
-            className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-sky-100 hover:bg-sky-200 text-sky-800 transition-colors"
+            className="flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1 rounded-full bg-sky-100 hover:bg-sky-200 text-sky-800 border border-sky-300/60 shadow-sm transition-all"
           >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Test / Demo Panel</span>
+            <Sliders className="w-3.5 h-3.5 text-sky-600" />
+            <span>Tester Demo</span>
           </button>
         </div>
       </header>
 
       {/* Main Validation Check OR Dual-Camera Viewport */}
       {!allConditionsMet ? (
-        /* CONDITION FAILURE SCREEN */
-        <div className="flex-1 flex flex-col justify-center items-center py-6 text-center space-y-5">
+        /* CONDITION FAILURE / PENDING SCREEN */
+        <div className="flex-1 flex flex-col justify-center items-center py-4 text-center space-y-4">
           <div className="w-16 h-16 rounded-3xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-600 shadow-md">
             <AlertCircle className="w-9 h-9" />
           </div>
 
           <div className="space-y-1">
             <h2 className="text-xl font-sora font-extrabold text-slate-900">
-              Zero-Trust Verification Required
+              Zero-Trust Verification Gate
             </h2>
             <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-              Attendance can only be opened when both Campus Wi-Fi and SIT Nagpur GPS geofencing are
-              validated.
+              Camera access unlocks only when both authorized Wi-Fi and GPS geofence are confirmed.
             </p>
           </div>
 
           {/* Diagnostic Status Cards */}
-          <div className="w-full space-y-3 text-left">
+          <div className="w-full space-y-2.5 text-left">
             {/* Wi-Fi Card */}
             <div
-              className={`p-4 rounded-2xl border transition-all ${
+              className={`p-3.5 rounded-2xl border transition-all ${
                 wifiValid
-                  ? 'bg-green-50/80 border-green-200 text-green-900'
-                  : 'bg-red-50/80 border-red-200 text-red-900'
+                  ? 'bg-green-50/90 border-green-200 text-green-900 shadow-sm'
+                  : 'bg-red-50/90 border-red-200 text-red-900'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2 font-semibold text-xs">
-                  <Wifi className="w-4 h-4" />
-                  <span>Campus Wi-Fi Network</span>
+                  <Wifi className="w-4 h-4 text-sky-600" />
+                  <span>Wi-Fi Network Authorization</span>
                 </div>
                 {wifiValid ? (
-                  <span className="flex items-center gap-1 text-[10px] bg-green-200/80 text-green-800 font-bold px-2 py-0.5 rounded-full">
-                    <Check className="w-3 h-3" /> Connected
+                  <span className="flex items-center gap-1 text-[10px] bg-green-200/90 text-green-900 font-bold px-2 py-0.5 rounded-full">
+                    <Check className="w-3 h-3" /> Authorized
                   </span>
                 ) : (
-                  <span className="text-[10px] bg-red-200/80 text-red-800 font-bold px-2 py-0.5 rounded-full">
-                    Invalid Network
+                  <span className="text-[10px] bg-red-200/90 text-red-900 font-bold px-2 py-0.5 rounded-full">
+                    Unauthorized
                   </span>
                 )}
               </div>
               <p className="text-xs opacity-90">
-                Connected to: <strong>{demoSettings.enabled ? demoSettings.selectedWifi : detectedWifi}</strong>
+                Connected SSID: <strong>{demoSettings.enabled ? demoSettings.selectedWifi : detectedWifi}</strong>
               </p>
               <p className="text-[10px] text-slate-500 mt-1">
-                Requires: "SYMBI_NGP_STUDENT" or "Rishab Thutheja"
+                Authorized Networks: <strong>Rishab Thutheja</strong> (Test) or <strong>SYMBI_NGP_STUDENT</strong> (Campus)
               </p>
             </div>
 
             {/* GPS Geofence Card */}
             <div
-              className={`p-4 rounded-2xl border transition-all ${
+              className={`p-3.5 rounded-2xl border transition-all ${
                 gpsValid
-                  ? 'bg-green-50/80 border-green-200 text-green-900'
-                  : 'bg-red-50/80 border-red-200 text-red-900'
+                  ? 'bg-green-50/90 border-green-200 text-green-900 shadow-sm'
+                  : 'bg-red-50/90 border-red-200 text-red-900'
               }`}
             >
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2 font-semibold text-xs">
-                  <MapPin className="w-4 h-4" />
+                  <MapPin className="w-4 h-4 text-sky-600" />
                   <span>GPS Geofence Location</span>
                 </div>
                 {gpsValid ? (
-                  <span className="flex items-center gap-1 text-[10px] bg-green-200/80 text-green-800 font-bold px-2 py-0.5 rounded-full">
-                    <Check className="w-3 h-3" /> On Campus
+                  <span className="flex items-center gap-1 text-[10px] bg-green-200/90 text-green-900 font-bold px-2 py-0.5 rounded-full">
+                    <Check className="w-3 h-3" /> Within Zone
                   </span>
                 ) : (
-                  <span className="text-[10px] bg-red-200/80 text-red-800 font-bold px-2 py-0.5 rounded-full">
-                    Outside Campus
+                  <span className="text-[10px] bg-red-200/90 text-red-900 font-bold px-2 py-0.5 rounded-full">
+                    Outside Geofence
                   </span>
                 )}
               </div>
-              <p className="text-xs opacity-90">
-                Target: <strong>Symbiosis Institute of Technology (SIT), Nagpur</strong>
-              </p>
-              {currentDistance !== null && (
-                <p className="text-[10px] mt-1 font-mono">
-                  Current distance: <strong>{(currentDistance / 1000).toFixed(2)} km</strong> (Max radius:{' '}
-                  {CAMPUS_COORDINATES.radiusMeters / 1000} km)
+
+              {gpsValid && activeZoneName ? (
+                <p className="text-xs font-semibold text-green-800">
+                  Location: <strong>{activeZoneName}</strong>
                 </p>
+              ) : (
+                <p className="text-xs opacity-90">
+                  Nearest: <strong>{geofenceReport?.nearestZone.name}</strong> (
+                  {geofenceReport ? (geofenceReport.distanceToNearest / 1000).toFixed(2) : '0'} km away)
+                </p>
+              )}
+
+              {effectiveCoords && (
+                <div className="flex items-center justify-between text-[10px] mt-1.5 font-mono text-slate-600 border-t border-sky-100/60 pt-1.5">
+                  <span>
+                    Lat: {effectiveCoords.lat.toFixed(5)}° · Lng: {effectiveCoords.lng.toFixed(5)}°
+                  </span>
+                  <a
+                    href={currentGoogleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-600 hover:text-sky-800 flex items-center gap-0.5 font-sans font-semibold underline"
+                  >
+                    View Map <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
               )}
             </div>
           </div>
 
-          <div className="w-full flex flex-col gap-2 pt-2">
+          <div className="w-full flex flex-col gap-2 pt-1">
             <button
               onClick={validateConditions}
-              className="w-full bg-sky-500 hover:bg-sky-600 active:scale-98 text-white font-semibold rounded-full h-12 text-sm shadow-md shadow-sky-300/40 flex items-center justify-center gap-2"
+              className="w-full bg-sky-500 hover:bg-sky-600 active:scale-98 text-white font-semibold rounded-full h-11 text-xs shadow-md shadow-sky-300/40 flex items-center justify-center gap-2 transition-transform"
             >
-              <RefreshCw className="w-4 h-4" />
-              Re-check Wi-Fi & GPS
+              <RefreshCw className="w-3.5 h-3.5" />
+              Re-Verify Wi-Fi & GPS
             </button>
             <button
               onClick={() => setShowDemoPanel(true)}
-              className="text-xs text-sky-600 hover:underline font-semibold py-1"
+              className="text-xs text-sky-600 hover:underline font-semibold py-1 flex items-center justify-center gap-1"
             >
-              Tap here to open Test / Demo settings & override
+              <Sliders className="w-3 h-3" />
+              Open Tester Demo (View Live Location & Presets)
             </button>
           </div>
         </div>
       ) : (
         /* DUAL CAMERA VIEWPORT (Image 2 style) */
-        <div className="flex-1 flex flex-col space-y-3 py-1">
+        <div className="flex-1 flex flex-col space-y-2.5 py-1">
+          {/* Active Verified Pill */}
+          <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-sky-100/80 border border-sky-200 text-[11px] text-sky-900">
+            <span className="flex items-center gap-1.5 truncate">
+              <MapPin className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+              <strong className="truncate">{activeZoneName || 'Authorized Zone'}</strong>
+            </span>
+            <span className="flex items-center gap-1 font-mono text-[10px] bg-white/80 px-2 py-0.5 rounded-md text-slate-700 shrink-0">
+              <Wifi className="w-3 h-3 text-sky-600" />
+              {demoSettings.enabled ? demoSettings.selectedWifi : detectedWifi}
+            </span>
+          </div>
+
           {/* Box 1: Back Camera (Classroom Board QR Code Viewport) */}
           <div className="space-y-1">
             <div className="flex items-center justify-between text-xs px-1">
@@ -395,7 +497,7 @@ export default function DualCameraScannerPage() {
                 1. Back Camera · Classroom Board
               </span>
               {detectedQrToken ? (
-                <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span className="text-[10px] font-bold text-green-700 bg-green-100 px-2 py-0.5 rounded-full flex items-center gap-1 border border-green-200">
                   <Check className="w-3 h-3" /> QR Detected
                 </span>
               ) : (
@@ -405,7 +507,7 @@ export default function DualCameraScannerPage() {
               )}
             </div>
 
-            <div className="relative w-full h-[190px] sm:h-[220px] rounded-2xl overflow-hidden border-2 border-sky-300 bg-slate-950 shadow-md">
+            <div className="relative w-full h-[185px] sm:h-[210px] rounded-2xl overflow-hidden border-2 border-sky-300 bg-slate-950 shadow-md">
               <video
                 ref={backVideoRef}
                 autoPlay
@@ -442,12 +544,12 @@ export default function DualCameraScannerPage() {
                 <UserCheck className="w-3.5 h-3.5 text-sky-600" />
                 2. Front Camera · Facial Match
               </span>
-              <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full border border-sky-200">
                 Matches Profile Photo
               </span>
             </div>
 
-            <div className="relative w-full h-[180px] sm:h-[200px] rounded-2xl overflow-hidden border-2 border-sky-300 bg-slate-950 shadow-md">
+            <div className="relative w-full h-[175px] sm:h-[195px] rounded-2xl overflow-hidden border-2 border-sky-300 bg-slate-950 shadow-md">
               <video
                 ref={frontVideoRef}
                 autoPlay
@@ -489,11 +591,11 @@ export default function DualCameraScannerPage() {
           <canvas ref={frontCanvasRef} className="hidden" />
 
           {/* Single Capture Button Below Both Frames */}
-          <div className="pt-2">
+          <div className="pt-1.5">
             <button
               onClick={handleSimultaneousCapture}
               disabled={submitting}
-              className="w-full bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 active:scale-95 text-white font-sora font-semibold rounded-full h-14 shadow-xl shadow-sky-400/50 flex items-center justify-center gap-2.5 text-base transition-transform"
+              className="w-full bg-gradient-to-r from-sky-500 via-sky-600 to-blue-600 active:scale-95 text-white font-sora font-semibold rounded-full h-13 shadow-xl shadow-sky-400/50 flex items-center justify-center gap-2.5 text-base transition-transform"
             >
               {submitting ? (
                 <div className="flex items-center gap-2">
@@ -560,45 +662,211 @@ export default function DualCameraScannerPage() {
         </div>
       )}
 
-      {/* Test / Demo Settings Panel (User Requirement: Seperate test/demo for map and location selection) */}
+      {/* TEST / DEMO CONTROL PANEL MODAL */}
       {showDemoPanel && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl border border-sky-200">
-            <div className="flex items-center justify-between border-b border-sky-100 pb-3">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl border border-sky-200 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-sky-100 pb-2.5">
               <div>
-                <h3 className="text-base font-sora font-bold text-slate-900">
-                  Test / Demo Control Panel
+                <h3 className="text-base font-sora font-bold text-slate-900 flex items-center gap-1.5">
+                  <Sliders className="w-4 h-4 text-sky-600" />
+                  Tester Demo & Live Location
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Override GPS and Wi-Fi to test the QR scanner anywhere
+                  Inspect live hardware GPS & select test verification profiles
                 </p>
               </div>
               <button
                 onClick={() => setShowDemoPanel(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full"
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full text-lg leading-none"
               >
                 ✕
               </button>
             </div>
 
-            {/* Demo Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-2xl bg-sky-50 border border-sky-200">
-              <div>
-                <p className="text-xs font-bold text-slate-800">Demo Testing Mode</p>
-                <p className="text-[10px] text-slate-500">Simulate authorized campus conditions</p>
+            {/* 1. Live Hardware GPS Monitor Box */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/60 border border-sky-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Navigation className="w-3.5 h-3.5 text-sky-600 animate-pulse" />
+                  Live Phone GPS Sensor
+                </span>
+                {liveHardwareCoords ? (
+                  <span className="text-[10px] font-bold text-green-800 bg-green-200/80 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-600 animate-ping" />
+                    Sensor Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                    Acquiring Signal...
+                  </span>
+                )}
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={demoSettings.enabled}
-                  onChange={(e) => setDemoSettings({ enabled: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
-              </label>
+
+              {liveHardwareCoords ? (
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between items-center font-mono text-[11px] bg-white/80 p-2 rounded-xl border border-sky-100">
+                    <div>
+                      <span className="text-slate-500">Lat:</span>{' '}
+                      <span className="font-bold text-slate-900">{liveHardwareCoords.lat.toFixed(6)}°</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Lng:</span>{' '}
+                      <span className="font-bold text-slate-900">{liveHardwareCoords.lng.toFixed(6)}°</span>
+                    </div>
+                    {liveHardwareCoords.accuracy !== null && (
+                      <span className="text-[10px] text-sky-700 font-sans font-semibold">
+                        ±{liveHardwareCoords.accuracy}m
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Distance to user's test location */}
+                  <div className="text-[11px] text-slate-600 space-y-0.5 pt-1">
+                    <p className="flex justify-between">
+                      <span>Distance to Rishab Thutheja Test Site:</span>
+                      <strong className="font-mono text-slate-900">
+                        {Math.round(
+                          getDistanceBetweenCoordinatesMeters(
+                            liveHardwareCoords.lat,
+                            liveHardwareCoords.lng,
+                            TEST_SITE_COORDINATES.lat,
+                            TEST_SITE_COORDINATES.lng
+                          )
+                        )}{' '}
+                        meters
+                      </strong>
+                    </p>
+                    <p className="flex justify-between">
+                      <span>Distance to SIT Nagpur Campus:</span>
+                      <strong className="font-mono text-slate-900">
+                        {(
+                          getDistanceBetweenCoordinatesMeters(
+                            liveHardwareCoords.lat,
+                            liveHardwareCoords.lng,
+                            CAMPUS_COORDINATES.lat,
+                            CAMPUS_COORDINATES.lng
+                          ) / 1000
+                        ).toFixed(2)}{' '}
+                        km
+                      </strong>
+                    </p>
+                  </div>
+
+                  <a
+                    href={`https://www.google.com/maps?q=${liveHardwareCoords.lat},${liveHardwareCoords.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-sky-600 hover:text-sky-800 font-semibold underline pt-1"
+                  >
+                    Open live coordinates in Google Maps <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              ) : (
+                <p className="text-[11px] text-slate-500 italic">
+                  Waiting for phone GPS hardware permissions. If on desktop, browser IP geolocation will be used.
+                </p>
+              )}
             </div>
 
-            {/* Select Wi-Fi SSID */}
+            {/* 2. Geofence Location Selection */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-sky-600" />
+                  Select Geofence Validation Target
+                </span>
+                <span className="text-[10px] text-slate-500">Pick one to test</span>
+              </label>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {/* Option A: User's Current Test Location (Rishab Thutheja Site) */}
+                <button
+                  type="button"
+                  onClick={() => setDemoSettings({ locationMode: 'test-site' })}
+                  className={`p-3 rounded-2xl text-left border transition-all ${
+                    demoSettings.locationMode === 'test-site'
+                      ? 'bg-sky-50 border-sky-500 text-sky-950 font-bold ring-2 ring-sky-300 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold">Rishab Thutheja Site</span>
+                    <span className="text-[9px] bg-sky-200 text-sky-900 font-bold px-1.5 py-0.2 rounded">
+                      Test
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">21.15136° N, 79.12706° E</p>
+                  <p className="text-[9px] text-emerald-600 font-semibold mt-1">Allowed Radius: 1.0 km</p>
+                </button>
+
+                {/* Option B: Live Device GPS (Real-Time) */}
+                <button
+                  type="button"
+                  onClick={() => setDemoSettings({ locationMode: 'live' })}
+                  className={`p-3 rounded-2xl text-left border transition-all ${
+                    demoSettings.locationMode === 'live'
+                      ? 'bg-sky-50 border-sky-500 text-sky-950 font-bold ring-2 ring-sky-300 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold">Live Phone GPS</span>
+                    <span className="text-[9px] bg-green-200 text-green-900 font-bold px-1.5 py-0.2 rounded">
+                      Live
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {liveHardwareCoords
+                      ? `${liveHardwareCoords.lat.toFixed(4)}°, ${liveHardwareCoords.lng.toFixed(4)}°`
+                      : 'Hardware Sensor'}
+                  </p>
+                  <p className="text-[9px] text-sky-600 font-semibold mt-1">Auto-matches test site</p>
+                </button>
+
+                {/* Option C: SIT Nagpur Official Campus */}
+                <button
+                  type="button"
+                  onClick={() => setDemoSettings({ locationMode: 'sit-campus' })}
+                  className={`p-3 rounded-2xl text-left border transition-all ${
+                    demoSettings.locationMode === 'sit-campus'
+                      ? 'bg-sky-50 border-sky-500 text-sky-950 font-bold ring-2 ring-sky-300 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold">SIT Nagpur Campus</span>
+                    <span className="text-[9px] bg-indigo-100 text-indigo-800 font-bold px-1.5 py-0.2 rounded">
+                      Demo
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">21.1258° N, 79.1585° E</p>
+                  <p className="text-[9px] text-indigo-600 font-semibold mt-1">Official Demonstration</p>
+                </button>
+
+                {/* Option D: Outside Geofence (Simulate Error) */}
+                <button
+                  type="button"
+                  onClick={() => setDemoSettings({ locationMode: 'outside' })}
+                  className={`p-3 rounded-2xl text-left border transition-all ${
+                    demoSettings.locationMode === 'outside'
+                      ? 'bg-red-50 border-red-500 text-red-950 font-bold ring-2 ring-red-300 shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold">Outside Campus</span>
+                    <span className="text-[9px] bg-red-100 text-red-800 font-bold px-1.5 py-0.2 rounded">
+                      Fail
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Remote Lockout</p>
+                  <p className="text-[9px] text-red-600 font-semibold mt-1">Simulate Failure State</p>
+                </button>
+              </div>
+            </div>
+
+            {/* 3. Wi-Fi Network Selection */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
                 <Wifi className="w-3.5 h-3.5 text-sky-600" />
@@ -607,60 +875,30 @@ export default function DualCameraScannerPage() {
               <select
                 value={demoSettings.selectedWifi}
                 onChange={(e) => setDemoSettings({ selectedWifi: e.target.value })}
-                className="w-full bg-[#f8fbff] text-slate-800 border border-sky-200 rounded-full h-11 px-4 text-xs font-medium focus:ring-2 focus:ring-sky-400 outline-none"
+                className="w-full bg-[#f8fbff] text-slate-800 border border-sky-200 rounded-2xl h-11 px-3 text-xs font-medium focus:ring-2 focus:ring-sky-400 outline-none"
               >
-                {AUTHORIZED_WIFI_NETWORKS.map((net) => (
-                  <option key={net.ssid} value={net.ssid}>
-                    {net.ssid} (Authorized Campus Network)
-                  </option>
-                ))}
-                <option value="Home_WiFi_Invalid">Home_WiFi (Invalid / Outside Campus)</option>
+                <option value="Rishab Thutheja">
+                  Rishab Thutheja (Authorized Test Wi-Fi - Passes ✅)
+                </option>
+                <option value="SYMBI_NGP_STUDENT">
+                  SYMBI_NGP_STUDENT (Official College Wi-Fi - Passes ✅)
+                </option>
+                <option value="Unknown_Home_WiFi">
+                  Unknown_Home_WiFi (Invalid Network - Fails ❌)
+                </option>
               </select>
             </div>
 
-            {/* GPS Location Selection */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-sky-600" />
-                GPS Location Simulation
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDemoSettings({ useCampusLocation: true })}
-                  className={`p-3 rounded-2xl text-left border text-xs transition-all ${
-                    demoSettings.useCampusLocation
-                      ? 'bg-sky-50 border-sky-400 text-sky-900 font-bold ring-2 ring-sky-300'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  <p className="font-bold">SIT Nagpur</p>
-                  <p className="text-[10px] text-slate-500 font-normal">21.1258° N, 79.1585° E</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDemoSettings({ useCampusLocation: false })}
-                  className={`p-3 rounded-2xl text-left border text-xs transition-all ${
-                    !demoSettings.useCampusLocation
-                      ? 'bg-amber-50 border-amber-400 text-amber-900 font-bold ring-2 ring-amber-300'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  <p className="font-bold">Outside Campus</p>
-                  <p className="text-[10px] text-slate-500 font-normal">Simulate Remote GPS</p>
-                </button>
-              </div>
-            </div>
-
+            {/* Apply & Close */}
             <button
               onClick={() => {
                 validateConditions();
                 setShowDemoPanel(false);
-                toast.success('Demo settings applied!');
+                toast.success('Validation profile applied!');
               }}
-              className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-full h-12 text-sm shadow-md mt-2"
+              className="w-full bg-sky-500 hover:bg-sky-600 active:scale-98 text-white font-semibold rounded-full h-11 text-xs shadow-md shadow-sky-300/40 transition-transform mt-1"
             >
-              Apply & Close
+              Apply Settings & Verify
             </button>
           </div>
         </div>

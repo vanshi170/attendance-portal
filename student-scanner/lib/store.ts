@@ -10,12 +10,15 @@ export interface StudentProfile {
   timetableUrl?: string | null;
 }
 
+export type LocationMode = 'live' | 'test-site' | 'sit-campus' | 'outside';
+
 export interface DemoSettings {
   enabled: boolean;
   selectedWifi: string;
   lat: number;
   lng: number;
-  useCampusLocation: boolean;
+  locationMode: LocationMode;
+  useCampusLocation?: boolean;
 }
 
 interface StudentState {
@@ -33,11 +36,12 @@ export const useStudentStore = create<StudentState>((set) => ({
   student: null,
   token: null,
   demoSettings: {
-    enabled: true, // Enabled by default for easy local & mobile testing
-    selectedWifi: 'SYMBI_NGP_STUDENT',
-    lat: 21.1258,
-    lng: 79.1585,
-    useCampusLocation: true,
+    enabled: true, // Enabled for smooth testing & demo verification
+    selectedWifi: 'Rishab Thutheja', // Default to test network per user's setup
+    lat: 21.151361423093896,
+    lng: 79.12705572951128,
+    locationMode: 'live', // Use real device GPS by default
+    useCampusLocation: false,
   },
   setAuth: (student, token) => {
     if (typeof window !== 'undefined') {
