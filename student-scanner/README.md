@@ -50,12 +50,12 @@ npm install
 ```
 
 ### 2. Environment Configuration
-Verify `.env` contains:
+Create a `.env` file inside `student-scanner/` with the following variables:
 ```env
-DATABASE_URL=postgresql://neondb_owner:npg_LI8eWmaigoH1@ep-dry-river-axmyjobs.c-4.us-east-2.aws.neon.tech/neondb?sslmode=require
-NEXT_PUBLIC_TEACHER_BACKEND_URL=http://localhost:10000
-NEXT_PUBLIC_APP_URL=http://localhost:3001
-JWT_SECRET=super-secret-jwt-key
+DATABASE_URL="postgresql://<username>:<password>@<neon-hostname>/neondb?sslmode=require"
+NEXT_PUBLIC_TEACHER_BACKEND_URL="http://localhost:10000"
+NEXT_PUBLIC_APP_URL="http://localhost:3001"
+JWT_SECRET="<your-secure-random-jwt-secret-key>"
 ```
 
 ### 3. Running Locally
@@ -66,9 +66,34 @@ Open **[http://localhost:3001](http://localhost:3001)** on your mobile browser o
 
 ---
 
+## 🚀 Cloud Deployment Guide (Standalone QR Scanner)
+
+The student scanner is fully decoupled from the teacher frontend and backend, enabling independent deployment to any cloud hosting provider (e.g., **Vercel**, **Render**, or **Netlify**).
+
+### Deploying to Vercel (Recommended)
+
+1. **Push your code to GitHub** (or connect your existing Git repository).
+2. Go to [vercel.com](https://vercel.com) and click **"Add New Project"**.
+3. Import your GitHub repository.
+4. In the **Configure Project** screen:
+   - **Project Name:** `sit-student-scanner` (or your preferred name)
+   - **Framework Preset:** `Next.js`
+   - **Root Directory:** Click **Edit** and select `student-scanner`.
+5. Under **Environment Variables**, add the following 4 variables:
+   | Variable | Value | Notes |
+   | :--- | :--- | :--- |
+   | `DATABASE_URL` | `postgresql://<user>:<pwd>@<neon-host>/neondb?sslmode=require` | Your Neon serverless PostgreSQL connection string |
+   | `NEXT_PUBLIC_TEACHER_BACKEND_URL` | `https://<your-backend>.onrender.com` | Live URL of the Express/Socket.IO backend |
+   | `NEXT_PUBLIC_APP_URL` | `https://sit-student-scanner.vercel.app` | The public Vercel production URL for this scanner app |
+   | `JWT_SECRET` | `<your-secure-jwt-secret>` | Must match the `JWT_SECRET` configured in `attendance-backend` |
+6. Click **Deploy**. Vercel will build and deploy the application in under 60 seconds.
+
+---
+
 ## 📲 Add to Home Screen (PWA Experience)
 
-1. Open **`http://<your-laptop-ip>:3001`** on Chrome (Android) or Safari (iOS).
-2. Tap the browser menu (or Share button on iOS).
+Once deployed (or running locally on Wi-Fi):
+1. Open the scanner web app URL on Chrome (Android) or Safari (iOS).
+2. Tap the browser menu (or the Share button on iOS).
 3. Select **"Add to Home Screen"**.
-4. The scanner web app will launch in standalone, full-screen mode without browser address bars!
+4. The scanner will install as a standalone mobile web app without browser address bars, offering a native mobile experience!
