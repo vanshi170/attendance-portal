@@ -47,7 +47,7 @@ export async function GET(request: Request) {
 
     // Overall attendance calculation from neondb data:
     // [ no of classes present in / total classes taken (present+absent) ] * 100
-    const percentage = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(1)) : 100.0;
+    const percentage = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(1)) : 0.0;
 
     // Format recent attendance logs
     const recentLogs = validRecords.slice(0, 15).map((r) => ({

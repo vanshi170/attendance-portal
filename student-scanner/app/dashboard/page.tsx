@@ -207,22 +207,30 @@ export default function StudentDashboardPage() {
             </span>
             <span
               className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
-                stats.isSafe
+                stats.totalCount === 0
+                  ? 'bg-sky-50 text-sky-700 border-sky-200'
+                  : stats.isSafe
                   ? 'bg-green-50 text-green-700 border-green-200'
                   : 'bg-amber-50 text-amber-700 border-amber-200'
               }`}
             >
-              {stats.isSafe ? 'Eligible (>75%)' : 'Shortage (<75%)'}
+              {stats.totalCount === 0
+                ? 'No Sessions Yet (0/0)'
+                : stats.isSafe
+                ? 'Eligible (>75%)'
+                : 'Shortage (<75%)'}
             </span>
           </div>
 
           <div className="flex items-end justify-between py-1">
             <div>
               <div className="text-4xl font-sora font-extrabold text-slate-900 tracking-tight flex items-baseline gap-1">
-                <span>{stats.percentage}%</span>
+                <span>{stats.totalCount === 0 ? '0' : stats.percentage}%</span>
               </div>
               <p className="text-[11px] text-slate-500 mt-1">
-                Calculated from live attendance sessions in Neon DB
+                {stats.totalCount === 0
+                  ? 'No lecture sessions held yet · 0 of 0 attended'
+                  : 'Calculated from live attendance sessions in Neon DB'}
               </p>
             </div>
 
@@ -237,8 +245,14 @@ export default function StudentDashboardPage() {
                   d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                 />
                 <path
-                  className={stats.isSafe ? 'text-sky-500' : 'text-amber-500'}
-                  strokeDasharray={`${stats.percentage}, 100`}
+                  className={
+                    stats.totalCount === 0
+                      ? 'text-sky-300'
+                      : stats.isSafe
+                      ? 'text-sky-500'
+                      : 'text-amber-500'
+                  }
+                  strokeDasharray={`${stats.totalCount === 0 ? 0 : stats.percentage}, 100`}
                   strokeLinecap="round"
                   strokeWidth="3.5"
                   stroke="currentColor"
@@ -306,28 +320,51 @@ export default function StudentDashboardPage() {
               className="w-full aspect-[16/9] rounded-2xl overflow-hidden border border-sky-200 shadow-inner bg-slate-950 relative group cursor-pointer"
             >
               {timetableUrl.startsWith('data:application/pdf') ? (
-                <div className="w-full h-full flex flex-col items-center justify-center text-white bg-slate-900 p-4 text-center">
-                  <FileText className="w-10 h-10 text-sky-400 mb-2" />
-                  <p className="text-xs font-medium">PDF Timetable Uploaded</p>
-                  <p className="text-[10px] text-slate-400 mt-1">Tap to open in fullscreen viewer</p>
+                <div className="w-full h-full relative bg-slate-900">
+                  <iframe
+                    src={`${timetableUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                    className="w-full h-full pointer-events-none rounded-2xl border-0 bg-white"
+                    title="Timetable PDF Preview"
+                  />
+                  {/* Subtle frosted glass overlay banner */}
+                  <div className="absolute inset-0 bg-slate-950/20 hover:bg-slate-950/10 transition-colors flex flex-col justify-between p-3 text-white pointer-events-auto">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-full text-sky-200">
+                        <FileText className="w-3.5 h-3.5 text-sky-400" />
+                        Weekly Timetable (PDF)
+                      </span>
+                      <span className="text-[10px] bg-sky-500 text-white font-semibold px-2 py-0.5 rounded-full shadow-sm">
+                        Tap to View
+                      </span>
+                    </div>
+                    <div className="flex items-end justify-between">
+                      <span className="text-[11px] font-medium text-white drop-shadow">
+                        Tap to view fullscreen & rotate
+                      </span>
+                      <span className="text-[10px] bg-black/60 backdrop-blur-sm px-2 py-0.5 rounded-full font-mono text-sky-200">
+                        Landscape 16:9
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <img
-                  src={timetableUrl}
-                  alt="Semester Timetable"
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+                <>
+                  <img
+                    src={timetableUrl}
+                    alt="Semester Timetable"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  {/* Tap to View Fullscreen Overlay Banner */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-3 text-white">
+                    <span className="text-[11px] font-medium flex items-center gap-1">
+                      Tap to view fullscreen & rotate
+                    </span>
+                    <span className="text-[10px] bg-sky-500/80 px-2 py-0.5 rounded-full font-mono">
+                      Landscape 16:9
+                    </span>
+                  </div>
+                </>
               )}
-
-              {/* Tap to View Fullscreen Overlay Banner */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end justify-between p-3 text-white">
-                <span className="text-[11px] font-medium flex items-center gap-1">
-                  Tap to view full screen & rotate
-                </span>
-                <span className="text-[10px] bg-sky-500/80 px-2 py-0.5 rounded-full font-mono">
-                  Landscape 16:9
-                </span>
-              </div>
             </div>
           ) : (
             /* Upload Prompt Box */
