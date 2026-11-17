@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 
 export const dynamic = 'force-dynamic';
 
-const TEACHER_BACKEND_URL =
+const rawBackendUrl =
   process.env.NEXT_PUBLIC_TEACHER_BACKEND_URL || 'http://localhost:10000';
+const TEACHER_BACKEND_URL = rawBackendUrl.replace(/\/+$/, '');
 
 export async function POST(request: Request) {
   try {
