@@ -19,9 +19,9 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureMetadataOutputObje
     var multiCamSession: AVCaptureMultiCamSession?
     var singleCamSession: AVCaptureSession?
     
-    // Preview Layers
-    var backPreviewLayer: AVCaptureVideoPreviewLayer?
-    var frontPreviewLayer: AVCaptureVideoPreviewLayer?
+    // Preview Layers (Published so SwiftUI updates CameraPreviewView when initialized)
+    @Published var backPreviewLayer: AVCaptureVideoPreviewLayer?
+    @Published var frontPreviewLayer: AVCaptureVideoPreviewLayer?
     
     private let sessionQueue = DispatchQueue(label: "DualCameraSessionQueue")
     private let faceSequenceHandler = VNSequenceRequestHandler()
@@ -89,7 +89,6 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureMetadataOutputObje
         if session.canAddConnection(backConnection) {
             session.addConnection(backConnection)
         }
-        self.backPreviewLayer = backLayer
         
         // Back Metadata Output (QR Code reader)
         let metadataOutput = AVCaptureMetadataOutput()
@@ -128,7 +127,6 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureMetadataOutputObje
         if session.canAddConnection(frontConnection) {
             session.addConnection(frontConnection)
         }
-        self.frontPreviewLayer = frontLayer
         
         // Front Video Data Output (Face detection analysis)
         let frontDataOutput = AVCaptureVideoDataOutput()
@@ -145,6 +143,8 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureMetadataOutputObje
         session.startRunning()
         
         DispatchQueue.main.async {
+            self.backPreviewLayer = backLayer
+            self.frontPreviewLayer = frontLayer
             self.multiCamSession = session
             self.isSessionRunning = session.isRunning
         }
@@ -167,7 +167,6 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureMetadataOutputObje
         
         let backLayer = AVCaptureVideoPreviewLayer(session: session)
         backLayer.videoGravity = .resizeAspectFill
-        self.backPreviewLayer = backLayer
         
         let metadataOutput = AVCaptureMetadataOutput()
         if session.canAddOutput(metadataOutput) {
@@ -180,6 +179,7 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureMetadataOutputObje
         session.startRunning()
         
         DispatchQueue.main.async {
+            self.backPreviewLayer = backLayer
             self.singleCamSession = session
             self.isSessionRunning = session.isRunning
         }

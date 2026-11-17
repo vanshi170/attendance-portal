@@ -90,6 +90,8 @@ struct LoginView: View {
                                     
                                     TextField("25070521001 or email", text: $identifier)
                                         .font(.system(size: 14))
+                                        .foregroundColor(.black)
+                                        .accentColor(.black)
                                         .autocapitalization(.none)
                                         .disableAutocorrection(true)
                                 }
@@ -116,6 +118,8 @@ struct LoginView: View {
                                     
                                     SecureField("••••••••", text: $password)
                                         .font(.system(size: 14))
+                                        .foregroundColor(.black)
+                                        .accentColor(.black)
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 12)

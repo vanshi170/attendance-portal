@@ -6,17 +6,30 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rollNo, timetableUrl } = body;
+    const { rollNo, studentId, timetableUrl } = body;
 
-    if (!rollNo || !timetableUrl) {
+    if ((!rollNo && !studentId) || !timetableUrl) {
       return NextResponse.json(
-        { error: 'PRN and timetable file data are required.' },
+        { error: 'PRN or studentId and timetable file data are required.' },
         { status: 400 }
       );
     }
 
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          ...(rollNo ? [{ rollNo: String(rollNo).trim() }] : []),
+          ...(studentId ? [{ id: String(studentId).trim() }] : []),
+        ],
+      },
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+    }
+
     const updated = await prisma.student.update({
-      where: { rollNo },
+      where: { id: student.id },
       data: { timetableUrl },
     });
 

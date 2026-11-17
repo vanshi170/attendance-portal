@@ -116,6 +116,33 @@ class APIService: ObservableObject {
         return ""
     }
     
+    // MARK: - Upload Timetable (PDF or Image)
+    func uploadTimetable(studentId: String, rollNo: String, fileData: Data, mimeType: String) async throws -> String {
+        let endpoint = baseURL.appendingPathComponent("/api/student/timetable")
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let base64String = "data:\(mimeType);base64,\(fileData.base64EncodedString())"
+        let payload: [String: Any] = [
+            "studentId": studentId,
+            "rollNo": rollNo,
+            "timetableUrl": base64String
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw NSError(domain: "Timetable", code: 500, userInfo: [NSLocalizedDescriptionKey: "Timetable upload failed"])
+        }
+        
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let timetableUrl = json["timetableUrl"] as? String {
+            return timetableUrl
+        }
+        return base64String
+    }
+    
     // MARK: - Fetch Dashboard
     func fetchDashboard(studentId: String) async throws -> DashboardResponse {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/student/dashboard"), resolvingAgainstBaseURL: false)!

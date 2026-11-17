@@ -62,6 +62,8 @@ struct RegisterView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("First Name").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray)
                                 TextField("e.g. Rishab", text: $firstName)
+                                    .foregroundColor(.black)
+                                    .accentColor(.black)
                                     .padding(10)
                                     .background(Color.white.opacity(0.9))
                                     .cornerRadius(10)
@@ -71,6 +73,8 @@ struct RegisterView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Last Name").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray)
                                 TextField("e.g. Thutheja", text: $lastName)
+                                    .foregroundColor(.black)
+                                    .accentColor(.black)
                                     .padding(10)
                                     .background(Color.white.opacity(0.9))
                                     .cornerRadius(10)
@@ -90,6 +94,8 @@ struct RegisterView: View {
                                 }
                             }
                             TextField("25070521001", text: $rollNo)
+                                .foregroundColor(.black)
+                                .accentColor(.black)
                                 .keyboardType(.numberPad)
                                 .padding(10)
                                 .background(Color.white.opacity(0.9))
@@ -109,6 +115,8 @@ struct RegisterView: View {
                                 }
                             }
                             TextField("student.prn@sitnagpur.siu.edu.in", text: $email)
+                                .foregroundColor(.black)
+                                .accentColor(.black)
                                 .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
                                 .disableAutocorrection(true)
@@ -134,6 +142,8 @@ struct RegisterView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Create Password").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray)
                             SecureField("••••••••", text: $password)
+                                .foregroundColor(.black)
+                                .accentColor(.black)
                                 .padding(10)
                                 .background(Color.white.opacity(0.9))
                                 .cornerRadius(10)

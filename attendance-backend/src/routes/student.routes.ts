@@ -117,17 +117,30 @@ router.post('/photo', async (req, res) => {
 // POST /api/student/timetable
 router.post('/timetable', async (req, res) => {
   try {
-    const { studentId, timetableUrl } = req.body;
-    if (!studentId) {
-      return res.status(400).json({ error: 'studentId is required' });
+    const { studentId, rollNo, timetableUrl } = req.body;
+    if (!studentId && !rollNo) {
+      return res.status(400).json({ error: 'studentId or rollNo is required' });
     }
 
-    const student = await prisma.student.update({
-      where: { id: studentId },
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          ...(studentId ? [{ id: studentId }] : []),
+          ...(rollNo ? [{ rollNo }] : []),
+        ],
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    const updated = await prisma.student.update({
+      where: { id: student.id },
       data: { timetableUrl: timetableUrl || '' },
     });
 
-    return res.json({ success: true, timetableUrl: student.timetableUrl });
+    return res.json({ success: true, timetableUrl: updated.timetableUrl });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Failed to update timetable' });
   }

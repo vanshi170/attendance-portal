@@ -6,7 +6,7 @@ struct TimetableDetailView: View {
     @Environment(\.dismiss) var dismiss
     
     var isPDF: Bool {
-        urlString.lowercased().contains(".pdf")
+        urlString.contains("application/pdf") || urlString.lowercased().contains(".pdf")
     }
     
     var body: some View {
@@ -14,11 +14,20 @@ struct TimetableDetailView: View {
             ZStack {
                 Color.black.ignoresSafeArea()
                 
-                if let url = URL(string: urlString) {
-                    if isPDF {
-                        PDFKitRepresentedView(url: url)
-                            .ignoresSafeArea()
-                    } else {
+                if isPDF {
+                    PDFKitRepresentedView(urlString: urlString)
+                        .ignoresSafeArea(edges: .bottom)
+                } else {
+                    if urlString.hasPrefix("data:image"),
+                       let commaIndex = urlString.firstIndex(of: ","),
+                       let data = Data(base64Encoded: String(urlString[urlString.index(after: commaIndex)...])),
+                       let image = UIImage(data: data) {
+                        ZoomableScrollView {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFit()
+                        }
+                    } else if let url = URL(string: urlString) {
                         AsyncImage(url: url) { phase in
                             switch phase {
                             case .success(let image):
@@ -37,34 +46,49 @@ struct TimetableDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Full Timetable")
+            .navigationTitle("Class Timetable")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                         .foregroundColor(.white)
+                        .font(.system(size: 15, weight: .semibold))
                 }
             }
         }
     }
 }
 
-// PDFKit integration for iOS
+// PDFKit integration for iOS that fits pages cleanly
 struct PDFKitRepresentedView: UIViewRepresentable {
-    let url: URL
+    let urlString: String
     
     func makeUIView(context: Context) -> PDFView {
         let pdfView = PDFView()
         pdfView.autoScales = true
-        pdfView.displayMode = .singlePageContinuous
-        pdfView.displayDirection = .vertical
-        if let document = PDFDocument(url: url) {
-            pdfView.document = document
-        }
+        pdfView.displayMode = .singlePage
+        pdfView.displayDirection = .horizontal
+        pdfView.backgroundColor = .black
+        
+        loadDocument(into: pdfView)
         return pdfView
     }
     
-    func updateUIView(_ uiView: PDFView, context: Context) {}
+    func updateUIView(_ uiView: PDFView, context: Context) {
+        if uiView.document == nil {
+            loadDocument(into: uiView)
+        }
+    }
+    
+    private func loadDocument(into pdfView: PDFView) {
+        if urlString.hasPrefix("data:application/pdf"),
+           let commaIndex = urlString.firstIndex(of: ","),
+           let data = Data(base64Encoded: String(urlString[urlString.index(after: commaIndex)...])) {
+            pdfView.document = PDFDocument(data: data)
+        } else if let url = URL(string: urlString) {
+            pdfView.document = PDFDocument(url: url)
+        }
+    }
 }
 
 // Pinch to Zoom View for Timetable Images

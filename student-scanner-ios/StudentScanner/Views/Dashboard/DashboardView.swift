@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UniformTypeIdentifiers
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
@@ -10,9 +11,12 @@ struct DashboardView: View {
     @State private var showScanner = false
     @State private var showTimetableDetail = false
     
-    // Photo picker for timetable
+    // File / Photo pickers for timetable
+    @State private var showFilePicker = false
+    @State private var showPhotoPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var isUploadingTimetable = false
+    @State private var timetableUploadError: String?
     
     var student: Student? {
         appState.currentStudent
@@ -157,8 +161,16 @@ struct DashboardView: View {
                                 
                                 Spacer()
                                 
-                                // Upload / Update button
-                                PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+                                // Menu accepting BOTH PDF and Photos
+                                Menu {
+                                    Button(action: { showFilePicker = true }) {
+                                        Label("Choose PDF from Files", systemImage: "doc.fill")
+                                    }
+                                    
+                                    Button(action: { showPhotoPicker = true }) {
+                                        Label("Choose Image from Photos", systemImage: "photo.fill")
+                                    }
+                                } label: {
                                     HStack(spacing: 4) {
                                         Image(systemName: student?.timetableUrl == nil ? "plus" : "arrow.triangle.2.circlepath")
                                             .font(.system(size: 11, weight: .bold))
@@ -173,49 +185,41 @@ struct DashboardView: View {
                                 }
                             }
                             
-                            // Landscape container (16:9 aspect ratio)
+                            // Landscape container (16:9 aspect ratio) - fits PDF and Image without zoom
                             ZStack {
                                 RoundedRectangle(cornerRadius: 16)
-                                    .fill(Color.white.opacity(0.9))
+                                    .fill(Color.white)
                                     .aspectRatio(16/9, contentMode: .fit)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 16)
                                             .stroke(Color.sky.opacity(0.25), lineWidth: 1)
                                     )
                                 
-                                if let timetableUrl = student?.timetableUrl, let url = URL(string: timetableUrl) {
+                                if let timetableUrl = student?.timetableUrl, !timetableUrl.isEmpty {
                                     Button(action: { showTimetableDetail = true }) {
-                                        AsyncImage(url: url) { phase in
-                                            if let img = phase.image {
-                                                img.resizable()
-                                                    .scaledToFill()
-                                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                                    .clipped()
-                                                    .cornerRadius(16)
-                                            } else {
-                                                ProgressView()
+                                        TimetableThumbnailView(urlString: timetableUrl)
+                                            .cornerRadius(16)
+                                            .clipped()
+                                    }
+                                    .overlay(
+                                        VStack {
+                                            Spacer()
+                                            HStack {
+                                                Spacer()
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                                    Text("Tap for Full Screen")
+                                                }
+                                                .font(.system(size: 10, weight: .semibold))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(Color.black.opacity(0.65))
+                                                .cornerRadius(8)
+                                                .padding(8)
                                             }
                                         }
-                                        .overlay(
-                                            VStack {
-                                                Spacer()
-                                                HStack {
-                                                    Spacer()
-                                                    HStack(spacing: 4) {
-                                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                                        Text("Tap for Full Screen")
-                                                    }
-                                                    .font(.system(size: 10, weight: .semibold))
-                                                    .foregroundColor(.white)
-                                                    .padding(.horizontal, 8)
-                                                    .padding(.vertical, 4)
-                                                    .background(Color.black.opacity(0.6))
-                                                    .cornerRadius(8)
-                                                    .padding(8)
-                                                }
-                                            }
-                                        )
-                                    }
+                                    )
                                 } else {
                                     // Empty state placeholder
                                     VStack(spacing: 8) {
@@ -225,11 +229,30 @@ struct DashboardView: View {
                                         Text("No Timetable Uploaded")
                                             .font(.system(size: 13, weight: .semibold))
                                             .foregroundColor(Color(red: 0.15, green: 0.25, blue: 0.4))
-                                        Text("Tap Update above to upload a landscape timetable")
+                                        Text("Accepts PDF or Image (16:9 landscape recommended)")
                                             .font(.system(size: 11))
                                             .foregroundColor(.gray)
                                     }
                                 }
+                                
+                                // Uploading indicator
+                                if isUploadingTimetable {
+                                    ZStack {
+                                        Color.black.opacity(0.4).cornerRadius(16)
+                                        VStack(spacing: 8) {
+                                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                            Text("Uploading timetable...")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if let err = timetableUploadError {
+                                Text(err)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.red)
                             }
                         }
                         .padding(18)
@@ -296,8 +319,16 @@ struct DashboardView: View {
                     TimetableDetailView(urlString: url)
                 }
             }
+            .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotoItem, matching: .images)
             .onChange(of: selectedPhotoItem) { newItem in
-                handleTimetableUpload(item: newItem)
+                handlePhotoSelection(item: newItem)
+            }
+            .fileImporter(
+                isPresented: $showFilePicker,
+                allowedContentTypes: [.pdf, .image, .jpeg, .png],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFileSelection(result: result)
             }
         }
     }
@@ -323,7 +354,6 @@ struct DashboardView: View {
                 }
             } catch {
                 await MainActor.run {
-                    // Default fallback
                     self.attendanceStats = AttendanceStats(totalClasses: 0, attendedClasses: 0, percentage: 0.0)
                     self.isLoading = false
                 }
@@ -331,28 +361,66 @@ struct DashboardView: View {
         }
     }
     
-    private func handleTimetableUpload(item: PhotosPickerItem?) {
+    // MARK: - Handle PDF/Image File Selection from Files App
+    private func handleFileSelection(result: Result<[URL], Error>) {
+        guard let currentStudent = student else { return }
+        switch result {
+        case .success(let urls):
+            guard let fileURL = urls.first else { return }
+            
+            // Security scoped resource access for iOS Files
+            let canAccess = fileURL.startAccessingSecurityScopedResource()
+            defer {
+                if canAccess { fileURL.stopAccessingSecurityScopedResource() }
+            }
+            
+            do {
+                let data = try Data(contentsOf: fileURL)
+                let isPDF = fileURL.pathExtension.lowercased() == "pdf"
+                let mimeType = isPDF ? "application/pdf" : "image/jpeg"
+                uploadTimetableData(data: data, mimeType: mimeType, student: currentStudent)
+            } catch {
+                self.timetableUploadError = "Failed to read selected file"
+            }
+            
+        case .failure(let err):
+            self.timetableUploadError = err.localizedDescription
+        }
+    }
+    
+    // MARK: - Handle Image Selection from Photos Library
+    private func handlePhotoSelection(item: PhotosPickerItem?) {
         guard let item = item, let currentStudent = student else { return }
-        isUploadingTimetable = true
         
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                do {
-                    let uploadedUrl = try await APIService.shared.uploadPhoto(studentId: currentStudent.id, image: image)
-                    await MainActor.run {
-                        var updated = currentStudent
-                        updated.timetableUrl = uploadedUrl
-                        self.appState.updateStudent(student: updated)
-                        self.isUploadingTimetable = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        self.isUploadingTimetable = false
-                    }
-                }
-            } else {
+            if let data = try? await item.loadTransferable(type: Data.self) {
+                uploadTimetableData(data: data, mimeType: "image/jpeg", student: currentStudent)
+            }
+        }
+    }
+    
+    private func uploadTimetableData(data: Data, mimeType: String, student: Student) {
+        isUploadingTimetable = true
+        timetableUploadError = nil
+        
+        Task {
+            do {
+                let timetableUrl = try await APIService.shared.uploadTimetable(
+                    studentId: student.id,
+                    rollNo: student.rollNo,
+                    fileData: data,
+                    mimeType: mimeType
+                )
+                
                 await MainActor.run {
+                    var updated = student
+                    updated.timetableUrl = timetableUrl
+                    self.appState.updateStudent(student: updated)
+                    self.isUploadingTimetable = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.timetableUploadError = error.localizedDescription
                     self.isUploadingTimetable = false
                 }
             }
