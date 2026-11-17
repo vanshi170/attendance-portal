@@ -14,9 +14,9 @@ struct AppConfig {
     }
 
     // Geofencing Coordinates
-    // Symbiosis Institute of Technology (SIT), Nagpur
-    static let campusLatitude = 21.125500
-    static let campusLongitude = 79.158500
+    // Symbiosis Institute of Technology (SIT), Nagpur (21°07'35.0"N 79°09'36.4"E)
+    static let campusLatitude = 21.126389
+    static let campusLongitude = 79.160111
     static let campusRadiusMeters: Double = 500.0
 
     // User's Test Location (from your prompt)

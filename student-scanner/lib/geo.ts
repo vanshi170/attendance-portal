@@ -26,10 +26,10 @@ export const AUTHORIZED_ZONES: GeofenceZone[] = [
     id: 'sit-campus',
     name: 'Symbiosis Institute of Technology (SIT), Nagpur',
     tag: 'Official Campus Demonstration',
-    lat: 21.1258,
-    lng: 79.1585,
+    lat: 21.126389,
+    lng: 79.160111,
     radiusMeters: 1500, // 1.5 km campus boundary radius
-    mapsUrl: 'https://maps.google.com/?q=21.1258,79.1585',
+    mapsUrl: 'https://maps.app.goo.gl/knRAGjXMYEd7rdhT6',
     isTestSite: false,
   },
 ];
