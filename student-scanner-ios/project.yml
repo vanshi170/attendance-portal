@@ -1,0 +1,30 @@
+name: StudentScanner
+options:
+  bundleIdPrefix: com.sitnagpur
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15.0"
+
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.sitnagpur.studentscanner
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1" # iPhone
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGNING_REQUIRED: "NO"
+    CODE_SIGNING_ALLOWED: "NO"
+
+targets:
+  StudentScanner:
+    type: application
+    platform: iOS
+    sources:
+      - path: StudentScanner
+    settings:
+      base:
+        INFOPLIST_FILE: StudentScanner/Info.plist
+        GENERATE_INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: "YES"
