@@ -97,7 +97,7 @@ npm install
 Create a `.env` file inside the `attendance-backend/` directory with the following variables:
 ```env
 DATABASE_URL="postgresql://<username>:<password>@<your-neon-hostname>.aws.neon.tech/neondb?sslmode=require"
-JWT_SECRET="super-secret-jwt-key"
+JWT_SECRET="your-secure-random-jwt-secret-key"
 PORT=10000
 CORS_ORIGIN="http://localhost:3000"
 FRONTEND_URL="http://localhost:3000"
@@ -149,7 +149,7 @@ npm run dev
 
 #### 1. Teacher Authentication
 1. Open your browser and navigate to [http://localhost:3000/login](http://localhost:3000/login).
-2. Log in using the pre-seeded faculty credentials:
+2. Log in using your registered faculty credentials or test credentials:
    - **Email:** `teacher.demo@brightfuture.edu`
    - **Password:** `<your-configured-password>`
 3. *(Alternative)* Click **"Register"** to create a custom faculty account with your name, institution email, and password.
