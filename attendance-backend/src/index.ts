@@ -67,12 +67,14 @@ import lecturesRoutes from './routes/lectures.routes';
 import sessionsRoutes from './routes/sessions.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import classroomsRoutes from './routes/classrooms.routes';
+import studentRoutes from './routes/student.routes';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/lectures', lecturesRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/classrooms', classroomsRoutes);
+app.use('/api/student', studentRoutes);
 
 const PORT = process.env.PORT || 10000;
 

@@ -8,15 +8,72 @@ import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 const router = Router();
 
 const registerSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, 'Name is required').optional(),
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
 router.post('/register', async (req, res) => {
   try {
-    const data = registerSchema.parse(req.body);
+    const { rollNo, section, firstName, lastName } = req.body;
     
+    // Check if this is a Student Registration
+    if (rollNo || req.body.isStudent || section) {
+      const cleanRollNo = String(rollNo || '').trim();
+      const cleanEmail = String(req.body.email || '').trim().toLowerCase();
+      const rawPassword = String(req.body.password || '');
+      const fullName = (req.body.name || `${firstName || ''} ${lastName || ''}`).trim();
+      const studentSection = String(section || 'AIML-A').toUpperCase();
+
+      if (!cleanRollNo || !/^\d{11}$/.test(cleanRollNo)) {
+        return res.status(400).json({ error: 'PRN must be an exact 11-digit number (e.g. 25070521001).' });
+      }
+
+      if (!cleanEmail.endsWith('@sitnagpur.siu.edu.in')) {
+        return res.status(400).json({
+          error: 'Please use your official college email ending with @sitnagpur.siu.edu.in.',
+        });
+      }
+
+      if (!rawPassword || rawPassword.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+      }
+
+      const student = await prisma.student.upsert({
+        where: { rollNo: cleanRollNo },
+        update: {
+          name: fullName || 'Student',
+          email: cleanEmail,
+          password: rawPassword,
+          section: studentSection,
+        },
+        create: {
+          rollNo: cleanRollNo,
+          name: fullName || 'Student',
+          email: cleanEmail,
+          password: rawPassword,
+          section: studentSection,
+        },
+      });
+
+      const token = `student_token_${student.id}_${Date.now()}`;
+      return res.status(201).json({
+        message: 'Registration successful',
+        token,
+        student: {
+          id: student.id,
+          name: student.name,
+          rollNo: student.rollNo,
+          email: student.email,
+          section: student.section,
+          photoUrl: student.photoUrl,
+          timetableUrl: student.timetableUrl,
+        },
+      });
+    }
+
+    // Teacher Registration Fallback
+    const data = registerSchema.parse(req.body);
     const existing = await prisma.teacher.findUnique({ where: { email: data.email } });
     if (existing) {
       return res.status(400).json({ error: 'Email already exists' });
@@ -25,42 +82,91 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const teacher = await prisma.teacher.create({
       data: {
-        name: data.name,
+        name: data.name || 'Instructor',
         email: data.email,
         password: hashedPassword,
       },
     });
 
     const token = jwt.sign({ id: teacher.id }, process.env.JWT_SECRET || 'super-secret-jwt-key', { expiresIn: '7d' });
-
-    res.status(201).json({ message: 'Registration successful', token, teacher: { id: teacher.id, name: teacher.name, email: teacher.email, subjects: teacher.subjects, profilePic: teacher.profilePic } });
+    return res.status(201).json({
+      message: 'Registration successful',
+      token,
+      teacher: { id: teacher.id, name: teacher.name, email: teacher.email, subjects: teacher.subjects, profilePic: teacher.profilePic },
+    });
   } catch (err: any) {
     if (err instanceof z.ZodError) {
       return res.status(400).json({ error: err.errors[0].message });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const rawInput = req.body.identifier || req.body.email || req.body.rollNo;
+    const password = req.body.password;
 
-    const teacher = await prisma.teacher.findUnique({ where: { email } });
-    if (!teacher) {
-      return res.status(401).json({ error: 'That email or password doesn\'t match our records.' });
+    if (!rawInput || !password) {
+      return res.status(400).json({ error: 'Email/PRN and password are required.' });
     }
 
-    const isValid = await bcrypt.compare(password, teacher.password);
-    if (!isValid) {
-      return res.status(401).json({ error: 'That email or password doesn\'t match our records.' });
+    const cleanInput = String(rawInput).trim();
+
+    // 1. Try finding Teacher first
+    const teacher = await prisma.teacher.findUnique({ where: { email: cleanInput.toLowerCase() } });
+    if (teacher) {
+      const isValid = await bcrypt.compare(String(password), teacher.password);
+      if (isValid) {
+        const token = jwt.sign({ id: teacher.id }, process.env.JWT_SECRET || 'super-secret-jwt-key', { expiresIn: '7d' });
+        return res.json({
+          token,
+          teacher: { id: teacher.id, name: teacher.name, email: teacher.email, subjects: teacher.subjects, profilePic: teacher.profilePic },
+        });
+      }
     }
 
-    const token = jwt.sign({ id: teacher.id }, process.env.JWT_SECRET || 'super-secret-jwt-key', { expiresIn: '7d' });
+    // 2. Try finding Student by PRN or Email
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { rollNo: cleanInput },
+          { email: cleanInput.toLowerCase() },
+        ],
+      },
+    });
 
-    res.json({ token, teacher: { id: teacher.id, name: teacher.name, email: teacher.email, subjects: teacher.subjects, profilePic: teacher.profilePic } });
-  } catch (err) {
-    res.status(500).json({ error: 'Internal server error' });
+    if (student) {
+      if (student.password && student.password !== String(password)) {
+        return res.status(401).json({ error: 'Incorrect password. Please try again.' });
+      }
+
+      if (!student.password) {
+        await prisma.student.update({
+          where: { id: student.id },
+          data: { password: String(password) },
+        });
+      }
+
+      const token = `student_token_${student.id}_${Date.now()}`;
+      return res.json({
+        message: 'Logged in successfully',
+        token,
+        student: {
+          id: student.id,
+          name: student.name,
+          rollNo: student.rollNo,
+          email: student.email,
+          section: student.section,
+          photoUrl: student.photoUrl,
+          timetableUrl: student.timetableUrl,
+        },
+      });
+    }
+
+    return res.status(401).json({ error: 'No account found with this PRN or Email.' });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 });
 

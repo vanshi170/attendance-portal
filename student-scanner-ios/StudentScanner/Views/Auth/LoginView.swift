@@ -7,6 +7,8 @@ struct LoginView: View {
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showRegister = false
+    @State private var showServerSettings = false
+    @State private var customServerURL = AppConfig.backendBaseURL
     
     var body: some View {
         NavigationStack {
@@ -37,6 +39,18 @@ struct LoginView: View {
                                     .foregroundColor(Color.blue)
                             }
                             Spacer()
+                            
+                            Button(action: { 
+                                customServerURL = AppConfig.backendBaseURL
+                                showServerSettings = true 
+                            }) {
+                                Image(systemName: "gearshape.fill")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.gray)
+                                    .padding(9)
+                                    .background(Color.white.opacity(0.85))
+                                    .clipShape(Circle())
+                            }
                         }
                         .padding(.top, 40)
                         
@@ -188,6 +202,40 @@ struct LoginView: View {
             }
             .navigationDestination(isPresented: $showRegister) {
                 RegisterView()
+            }
+            .sheet(isPresented: $showServerSettings) {
+                NavigationStack {
+                    Form {
+                        Section(header: Text("Backend Server URL"), footer: Text("Enter either your Render backend URL or Vercel deployment URL.")) {
+                            TextField("https://attendance-portal-00ea.onrender.com", text: $customServerURL)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .keyboardType(.URL)
+                        }
+                        
+                        Section {
+                            Button("Save & Apply") {
+                                AppConfig.backendBaseURL = customServerURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                showServerSettings = false
+                            }
+                            .foregroundColor(.blue)
+                            
+                            Button("Reset to Render Default") {
+                                customServerURL = "https://attendance-portal-00ea.onrender.com"
+                                AppConfig.backendBaseURL = customServerURL
+                                showServerSettings = false
+                            }
+                            .foregroundColor(.red)
+                        }
+                    }
+                    .navigationTitle("Server Settings")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") { showServerSettings = false }
+                        }
+                    }
+                }
             }
         }
     }

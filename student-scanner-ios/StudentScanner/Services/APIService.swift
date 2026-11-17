@@ -19,6 +19,8 @@ class APIService: ObservableObject {
         
         let payload: [String: Any] = [
             "identifier": identifier,
+            "email": identifier,
+            "rollNo": identifier,
             "password": password
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
@@ -45,13 +47,16 @@ class APIService: ObservableObject {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        let fullName = "\(firstName.trimmingCharacters(in: .whitespaces)) \(lastName.trimmingCharacters(in: .whitespaces))"
         let payload: [String: Any] = [
+            "name": fullName,
             "firstName": firstName,
             "lastName": lastName,
             "rollNo": rollNo,
             "email": email,
             "password": password,
-            "section": section
+            "section": section,
+            "isStudent": true
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         
