@@ -144,9 +144,13 @@ class APIService: ObservableObject {
     }
     
     // MARK: - Fetch Dashboard
-    func fetchDashboard(studentId: String) async throws -> DashboardResponse {
+    func fetchDashboard(studentId: String, rollNo: String? = nil) async throws -> DashboardResponse {
         var components = URLComponents(url: baseURL.appendingPathComponent("/api/student/dashboard"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "studentId", value: studentId)]
+        var queryItems = [URLQueryItem(name: "studentId", value: studentId)]
+        if let r = rollNo {
+            queryItems.append(URLQueryItem(name: "rollNo", value: r))
+        }
+        components.queryItems = queryItems
         
         var request = URLRequest(url: components.url!)
         request.httpMethod = "GET"

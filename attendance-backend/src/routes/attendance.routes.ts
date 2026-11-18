@@ -104,52 +104,38 @@ router.post('/scan', async (req, res) => {
       return res.status(400).json({ error: 'Session is not active' });
     }
 
-    // Dynamic Student Registration
-    let student = await prisma.student.findUnique({ where: { rollNo } });
+    // Verify Student Exists (Do NOT create dynamic students)
+    const cleanRollNo = String(rollNo).trim();
+    const student = await prisma.student.findUnique({ where: { rollNo: cleanRollNo } });
     if (!student) {
-      if (!name) {
-        return res.status(400).json({ error: 'Student not found. Name is required to register a new student.' });
-      }
-      student = await prisma.student.create({
-        data: { rollNo, name }
-      });
+      return res.status(404).json({ error: 'Student PRN not registered in the system.' });
     }
 
-    let record = await prisma.attendanceRecord.findUnique({
+    // Verify Student is in the Lecture Session Roster (Class list)
+    const record = await prisma.attendanceRecord.findUnique({
       where: { sessionId_studentId: { sessionId, studentId: student.id } }
     });
 
     if (!record) {
-      // If student is new to this lecture, we could add them to the roster if we wanted
-      // await prisma.studentLecture.upsert({ ... })
-      
-      // Create the record dynamically as present
-      record = await prisma.attendanceRecord.create({
-        data: {
-          sessionId,
-          studentId: student.id,
-          status: 'present',
-          method: 'qr',
-          markedAt: new Date()
-        }
-      });
-    } else {
-      if (record.status === 'present' || record.status === 'late') {
-        return res.json({ message: 'Attendance already recorded', status: record.status });
-      }
-      
-      record = await prisma.attendanceRecord.update({
-        where: { id: record.id },
-        data: { status: 'present', method: 'qr', markedAt: new Date() }
+      return res.status(403).json({
+        error: 'You are not enrolled in this lecture session. You are not in the class list.'
       });
     }
+
+    if (record.status === 'present' || record.status === 'late') {
+      return res.json({ message: 'Attendance already recorded for this session', status: record.status });
+    }
+    
+    const updatedRecord = await prisma.attendanceRecord.update({
+      where: { id: record.id },
+      data: { status: 'present', method: 'qr', markedAt: new Date() }
+    });
 
     io.to(`session:${sessionId}`).emit('attendance:update', {
       studentId: student.id,
       status: 'present',
       method: 'qr',
-      timestamp: record.markedAt,
-      // For dynamic rosters, we also need to send the student details so the frontend can add them to the list
+      timestamp: updatedRecord.markedAt,
       student: { id: student.id, name: student.name, rollNo: student.rollNo }
     });
 

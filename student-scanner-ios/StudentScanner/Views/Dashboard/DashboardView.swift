@@ -309,8 +309,14 @@ struct DashboardView: View {
                     }
                     .padding(.horizontal, 22)
                 }
+                .refreshable {
+                    loadDashboardData()
+                }
             }
             .onAppear(perform: loadDashboardData)
+            .onReceive(Timer.publish(every: 6, on: .main, in: .common).autoconnect()) { _ in
+                loadDashboardData()
+            }
             .fullScreenCover(isPresented: $showScanner, onDismiss: loadDashboardData) {
                 DualCameraScannerView()
             }
@@ -342,11 +348,10 @@ struct DashboardView: View {
     
     private func loadDashboardData() {
         guard let s = student else { return }
-        isLoading = true
         
         Task {
             do {
-                let response = try await APIService.shared.fetchDashboard(studentId: s.id)
+                let response = try await APIService.shared.fetchDashboard(studentId: s.id, rollNo: s.rollNo)
                 await MainActor.run {
                     self.attendanceStats = response.attendance
                     self.recentLogs = response.recentLogs ?? []
@@ -354,7 +359,6 @@ struct DashboardView: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.attendanceStats = AttendanceStats(totalClasses: 0, attendedClasses: 0, percentage: 0.0)
                     self.isLoading = false
                 }
             }

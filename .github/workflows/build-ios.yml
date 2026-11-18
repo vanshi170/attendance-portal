@@ -30,6 +30,7 @@ jobs:
       - name: Build and Archive iOS Application
         working-directory: student-scanner-ios
         run: |
+          set -o pipefail
           xcodebuild -project StudentScanner.xcodeproj \
             -scheme StudentScanner \
             -configuration Release \
@@ -38,7 +39,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            clean archive
+            clean archive 2>&1 | tee xcodebuild.log || {
+              echo "==================== BUILD ERRORS DETECTED ===================="
+              grep -E "error:|fatal error:|BUILD FAILED" xcodebuild.log || tail -n 60 xcodebuild.log
+              echo "================================================================"
+              exit 1
+            }
 
       - name: Package Payload into Installable IPA
         working-directory: student-scanner-ios

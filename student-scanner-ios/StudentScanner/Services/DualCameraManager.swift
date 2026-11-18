@@ -10,6 +10,7 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
     
     // QR Code Scanning (Powered by Apple Vision)
     @Published var detectedQRToken: String?
+    @Published var isQRInFrame: Bool = false
     
     // Face Detection & Biometric Verification
     @Published var isFaceDetected: Bool = false
@@ -220,6 +221,10 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
             self?.singleCamSession?.stopRunning()
             DispatchQueue.main.async {
                 self?.isSessionRunning = false
+                self?.isQRInFrame = false
+                self?.detectedQRToken = nil
+                self?.isFaceDetected = false
+                self?.isFaceMatched = false
             }
         }
     }
@@ -237,22 +242,28 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
             
             let barcodeRequest = VNDetectBarcodesRequest { [weak self] request, error in
                 defer { self?.isAnalyzingQR = false }
-                guard let results = request.results as? [VNBarcodeObservation] else { return }
+                guard let self = self else { return }
                 
-                for barcode in results {
-                    if barcode.symbology == .qr, let rawValue = barcode.payloadStringValue {
-                        var token = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if token.contains("/scan/") {
-                            token = token.components(separatedBy: "/scan/").last?.components(separatedBy: "?").first ?? token
+                let barcodes = (request.results as? [VNBarcodeObservation])?.filter { $0.symbology == .qr } ?? []
+                
+                if let barcode = barcodes.first, let rawValue = barcode.payloadStringValue {
+                    var token = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if token.contains("/scan/") {
+                        token = token.components(separatedBy: "/scan/").last?.components(separatedBy: "?").first ?? token
+                    }
+                    
+                    DispatchQueue.main.async {
+                        self.isQRInFrame = true
+                        if self.detectedQRToken != token {
+                            self.detectedQRToken = token
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
                         }
-                        
-                        DispatchQueue.main.async {
-                            if self?.detectedQRToken != token {
-                                self?.detectedQRToken = token
-                                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                            }
-                        }
-                        break
+                    }
+                } else {
+                    // Frame has no QR code visible: reset instantly!
+                    DispatchQueue.main.async {
+                        self.isQRInFrame = false
+                        self.detectedQRToken = nil
                     }
                 }
             }

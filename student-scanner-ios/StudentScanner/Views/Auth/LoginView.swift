@@ -165,19 +165,32 @@ struct LoginView: View {
                             .disabled(isLoading || identifier.isEmpty || password.isEmpty)
                             .opacity((identifier.isEmpty || password.isEmpty) ? 0.6 : 1.0)
                             
-                            // Register link
-                            Button(action: { showRegister = true }) {
-                                HStack(spacing: 4) {
-                                    Text("New student?")
-                                        .font(.system(size: 13))
+                            // Register link (Hidden if device already has a registered student)
+                            if !appState.isDeviceRegistered {
+                                Button(action: { showRegister = true }) {
+                                    HStack(spacing: 4) {
+                                        Text("New student?")
+                                            .font(.system(size: 13))
+                                            .foregroundColor(.gray)
+                                        Text("Register here")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(Color.blue)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                                .padding(.top, 4)
+                            } else {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "lock.iphone")
+                                        .font(.system(size: 12))
                                         .foregroundColor(.gray)
-                                    Text("Register here")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(Color.blue)
+                                    Text("Device bound to PRN: \(appState.boundStudentPRN ?? "")")
+                                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                        .foregroundColor(.gray)
                                 }
                                 .frame(maxWidth: .infinity)
+                                .padding(.top, 6)
                             }
-                            .padding(.top, 4)
                         }
                         .padding(22)
                         .background(Color.white.opacity(0.75))
@@ -246,6 +259,16 @@ struct LoginView: View {
     
     private func handleLogin() {
         guard !identifier.isEmpty, !password.isEmpty else { return }
+        
+        // Security check: Only the bound student can log into this device
+        if appState.isDeviceRegistered, let boundPRN = appState.boundStudentPRN, !boundPRN.isEmpty {
+            let clean = identifier.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !clean.contains(boundPRN.lowercased()) {
+                self.errorMessage = "Device Security Lock: This device is bound to student PRN \(boundPRN). Only the registered device owner can sign in."
+                return
+            }
+        }
+        
         isLoading = true
         errorMessage = nil
         

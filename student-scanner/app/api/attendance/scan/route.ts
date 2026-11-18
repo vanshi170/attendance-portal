@@ -92,8 +92,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const cleanRollNo = String(rollNo).trim();
     const student = await prisma.student.findUnique({
-      where: { rollNo },
+      where: { rollNo: cleanRollNo },
     });
 
     if (!student) {
@@ -103,22 +104,33 @@ export async function POST(request: Request) {
       );
     }
 
-    // Upsert record as present
-    await prisma.attendanceRecord.upsert({
+    // Check if student is in the Lecture Session Roster (Class list)
+    const record = await prisma.attendanceRecord.findUnique({
       where: {
         sessionId_studentId: {
           sessionId,
           studentId: student.id,
         },
       },
-      update: {
-        status: 'present',
-        method: 'qr',
-        markedAt: new Date(),
-      },
-      create: {
-        sessionId,
-        studentId: student.id,
+    });
+
+    if (!record) {
+      return NextResponse.json(
+        { error: 'You are not enrolled in this lecture session. You are not in the class list.' },
+        { status: 403 }
+      );
+    }
+
+    if (record.status === 'present' || record.status === 'late') {
+      return NextResponse.json({
+        success: true,
+        message: 'Attendance already recorded for this lecture.',
+      });
+    }
+
+    await prisma.attendanceRecord.update({
+      where: { id: record.id },
+      data: {
         status: 'present',
         method: 'qr',
         markedAt: new Date(),

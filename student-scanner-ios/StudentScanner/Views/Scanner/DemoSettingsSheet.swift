@@ -5,7 +5,8 @@ struct DemoSettingsSheet: View {
     @ObservedObject var networkManager: NetworkManager
     @Environment(\.dismiss) var dismiss
     
-    let wifiOptions = ["Rishab Thutheja", "SYMBI_NGP_STUDENT", "Other / Mobile Data"]
+    let connectedWifiOptions = ["Rishab Thutheja", "SYMBI_NGP_STUDENT", "Other / Cellular Data"]
+    let requiredWifiOptions = ["SYMBI_NGP_STUDENT", "Rishab Thutheja"]
     
     var body: some View {
         NavigationStack {
@@ -47,11 +48,31 @@ struct DemoSettingsSheet: View {
                 
                 Section(
                     header: Text("Wi-Fi Validation"),
-                    footer: Text("Both 'Rishab Thutheja' and 'SYMBI_NGP_STUDENT' are recognized as authorized networks. Select 'Other / Mobile Data' to test network blocking.")
+                    footer: Text("If Connected Wi-Fi does not match the Required Classroom Wi-Fi, attendance is blocked. Enable Demo Wi-Fi Bypass to override.")
                 ) {
-                    Picker("Network SSID", selection: $networkManager.currentSSID) {
-                        ForEach(wifiOptions, id: \.self) { ssid in
+                    Picker("Connected Wi-Fi", selection: $networkManager.currentSSID) {
+                        ForEach(connectedWifiOptions, id: \.self) { ssid in
                             Text(ssid).tag(ssid)
+                        }
+                    }
+                    
+                    Picker("Required Wi-Fi", selection: $networkManager.requiredSSID) {
+                        ForEach(requiredWifiOptions, id: \.self) { ssid in
+                            Text(ssid).tag(ssid)
+                        }
+                    }
+                    
+                    HStack {
+                        Text("Validation Status")
+                        Spacer()
+                        if networkManager.isWifiValid {
+                            Text("MATCH ✓")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.green)
+                        } else {
+                            Text("MISMATCH ✕")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.red)
                         }
                     }
                     

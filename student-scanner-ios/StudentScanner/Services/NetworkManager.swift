@@ -5,10 +5,17 @@ import SystemConfiguration.CaptiveNetwork
 class NetworkManager: ObservableObject {
     static let shared = NetworkManager()
     
+    // Connected Wi-Fi (Actual device Wi-Fi or user-tested simulation)
     @Published var currentSSID: String = "Rishab Thutheja" {
         didSet { validateWifi() }
     }
-    @Published var isWifiValid: Bool = true
+    
+    // Target Required Classroom Wi-Fi (default: SYMBI_NGP_STUDENT)
+    @Published var requiredSSID: String = "SYMBI_NGP_STUDENT" {
+        didSet { validateWifi() }
+    }
+    
+    @Published var isWifiValid: Bool = false
     @Published var isDemoBypassEnabled: Bool = false {
         didSet { validateWifi() }
     }
@@ -31,13 +38,17 @@ class NetworkManager: ObservableObject {
         monitor.start(queue: queue)
     }
     
-    func setManualSSID(_ ssid: String) {
+    func setConnectedSSID(_ ssid: String) {
         self.currentSSID = ssid
         validateWifi()
     }
     
+    func setRequiredSSID(_ ssid: String) {
+        self.requiredSSID = ssid
+        validateWifi()
+    }
+    
     func fetchConnectedSSID() {
-        // Query system captive network if available
         if let interfaces = CNCopySupportedInterfaces() as? [String] {
             for interface in interfaces {
                 if let interfaceInfo = CNCopyCurrentNetworkInfo(interface as CFString) as? [String: Any] {
@@ -48,7 +59,6 @@ class NetworkManager: ObservableObject {
                 }
             }
         }
-        // Fallback maintains the detected or user-configured SSID
     }
     
     func validateWifi() {
@@ -57,10 +67,9 @@ class NetworkManager: ObservableObject {
             return
         }
         
-        let validList = AppConfig.authorizedSSIDs
-        let match = validList.contains { authorized in
-            currentSSID.caseInsensitiveCompare(authorized) == .orderedSame
-        }
+        let currentClean = currentSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let requiredClean = requiredSSID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let match = currentClean.caseInsensitiveCompare(requiredClean) == .orderedSame
         self.isWifiValid = match
     }
 }

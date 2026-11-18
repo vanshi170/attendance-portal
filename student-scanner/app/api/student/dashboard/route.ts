@@ -7,13 +7,19 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const rollNo = searchParams.get('rollNo');
+    const studentId = searchParams.get('studentId');
 
-    if (!rollNo) {
-      return NextResponse.json({ error: 'PRN is required' }, { status: 400 });
+    if (!rollNo && !studentId) {
+      return NextResponse.json({ error: 'PRN or studentId is required' }, { status: 400 });
     }
 
-    const student = await prisma.student.findUnique({
-      where: { rollNo },
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          ...(rollNo ? [{ rollNo: String(rollNo).trim() }] : []),
+          ...(studentId ? [{ id: String(studentId).trim() }] : []),
+        ],
+      },
       include: {
         records: {
           include: {

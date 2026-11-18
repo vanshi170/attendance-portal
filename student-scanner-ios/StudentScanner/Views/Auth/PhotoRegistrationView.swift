@@ -9,6 +9,7 @@ struct PhotoRegistrationView: View {
     @State private var capturedImage: UIImage?
     @State private var isUploading = false
     @State private var errorMessage: String?
+    @State private var showConfirmDialog = false
     
     var body: some View {
         ZStack {
@@ -16,22 +17,34 @@ struct PhotoRegistrationView: View {
             
             if let image = capturedImage {
                 // Confirmation screen with preview
-                VStack(spacing: 24) {
+                VStack(spacing: 20) {
                     Text("Verify Passport Photo")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .padding(.top, 40)
                     
-                    Text("This photo is permanently locked to your PRN (\(student.rollNo)) for biometric attendance verification.")
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
+                    VStack(spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.yellow)
+                            Text("ATTENTION: PERMANENT BIOMETRIC RECORD")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.yellow)
+                        }
+                        Text("Make sure this is your correct profile picture. This photo will be permanently locked to your PRN (\(student.rollNo)) for biometric attendance verification and CANNOT be changed later.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.9))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(12)
+                    .background(Color.yellow.opacity(0.15))
+                    .cornerRadius(12)
+                    .padding(.horizontal, 20)
                     
                     Image(uiImage: image)
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 240, height: 320)
+                        .frame(width: 220, height: 290)
                         .clipShape(RoundedRectangle(cornerRadius: 24))
                         .overlay(
                             RoundedRectangle(cornerRadius: 24)
@@ -55,7 +68,7 @@ struct PhotoRegistrationView: View {
                                 .cornerRadius(24)
                         }
                         
-                        Button(action: handleUpload) {
+                        Button(action: { showConfirmDialog = true }) {
                             HStack {
                                 if isUploading {
                                     ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
@@ -76,6 +89,16 @@ struct PhotoRegistrationView: View {
                     .padding(.top, 10)
                     
                     Spacer()
+                }
+                .confirmationDialog("Confirm Permanent Profile Photo", isPresented: $showConfirmDialog, titleVisibility: .visible) {
+                    Button("Yes, Confirm & Lock Photo") {
+                        handleUpload()
+                    }
+                    Button("No, Retake Photo", role: .cancel) {
+                        capturedImage = nil
+                    }
+                } message: {
+                    Text("Make sure this is your correct face. This photo will be used for biometric attendance verification and CANNOT be changed or updated later.")
                 }
             } else {
                 // Live camera with passport alignment guide

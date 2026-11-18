@@ -20,6 +20,7 @@ struct DualCameraScannerView: View {
     var isReadyToCapture: Bool {
         locationManager.isInsideGeofence &&
         networkManager.isWifiValid &&
+        cameraManager.isQRInFrame &&
         cameraManager.detectedQRToken != nil &&
         cameraManager.isFaceDetected &&
         cameraManager.isFaceMatched
@@ -67,9 +68,9 @@ struct DualCameraScannerView: View {
                     HStack(spacing: 4) {
                         Image(systemName: networkManager.isWifiValid ? "wifi" : "wifi.slash")
                             .foregroundColor(networkManager.isWifiValid ? .green : .red)
-                        Text(networkManager.currentSSID)
+                        Text(networkManager.isWifiValid ? networkManager.currentSSID : "\(networkManager.currentSSID) (Req: \(networkManager.requiredSSID))")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(networkManager.isWifiValid ? .white : .red)
                             .lineLimit(1)
                     }
                     .padding(.horizontal, 10)
@@ -92,13 +93,13 @@ struct DualCameraScannerView: View {
                 }
                 .padding(.bottom, 2)
                 
-                // BOX 1 (Top): Back Camera for Board QR (Vision Barcode Output)
+                // BOX 1 (Top): Back Camera for Board QR (Live frame-by-frame Vision output)
                 ZStack {
                     CameraPreviewView(previewLayer: cameraManager.backPreviewLayer)
                         .cornerRadius(18)
                         .overlay(
                             RoundedRectangle(cornerRadius: 18)
-                                .stroke(cameraManager.detectedQRToken != nil ? Color.green : Color.sky.opacity(0.5), lineWidth: 1.5)
+                                .stroke(cameraManager.isQRInFrame ? Color.green : Color.sky.opacity(0.5), lineWidth: 1.5)
                         )
                     
                     // QR Targeting Reticle
@@ -106,14 +107,14 @@ struct DualCameraScannerView: View {
                         Spacer()
                         ZStack {
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(cameraManager.detectedQRToken != nil ? Color.green : Color.white.opacity(0.7), lineWidth: 2)
+                                .stroke(cameraManager.isQRInFrame ? Color.green : Color.white.opacity(0.7), lineWidth: 2)
                                 .frame(width: 140, height: 140)
                             
                             // Laser scanline
                             Rectangle()
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color.sky.opacity(0), cameraManager.detectedQRToken != nil ? Color.green : Color.sky, Color.sky.opacity(0)],
+                                        colors: [Color.sky.opacity(0), cameraManager.isQRInFrame ? Color.green : Color.sky, Color.sky.opacity(0)],
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     )
@@ -128,7 +129,7 @@ struct DualCameraScannerView: View {
                     VStack {
                         HStack {
                             HStack(spacing: 4) {
-                                Circle().fill(cameraManager.detectedQRToken != nil ? Color.green : Color.yellow).frame(width: 6, height: 6)
+                                Circle().fill(cameraManager.isQRInFrame ? Color.green : Color.yellow).frame(width: 6, height: 6)
                                 Text("Back Lens: Board QR")
                                     .font(.system(size: 10, weight: .bold))
                                     .foregroundColor(.white)
@@ -140,7 +141,7 @@ struct DualCameraScannerView: View {
                             
                             Spacer()
                             
-                            if cameraManager.detectedQRToken != nil {
+                            if cameraManager.isQRInFrame && cameraManager.detectedQRToken != nil {
                                 HStack(spacing: 4) {
                                     Image(systemName: "checkmark.circle.fill")
                                     Text("QR ACQUIRED")
@@ -245,15 +246,16 @@ struct DualCameraScannerView: View {
                 .frame(maxHeight: .infinity)
                 .padding(.horizontal, 14)
                 
-                // Error toast if any
+                // Feedback Error Message
                 if let err = errorMessage {
                     Text(err)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
                         .padding(.horizontal, 16)
                 }
                 
-                // Single Capture Button Below Both Frames
+                // Bottom Capture Action Button
                 Button(action: handleCaptureAndVerify) {
                     HStack(spacing: 8) {
                         if isSubmitting {
@@ -313,12 +315,12 @@ struct DualCameraScannerView: View {
     
     private var buttonLabel: String {
         if !networkManager.isWifiValid {
-            return "Connect to Campus / Home Wi-Fi"
+            return "Connect to \(networkManager.requiredSSID) Wi-Fi"
         }
         if !locationManager.isInsideGeofence {
             return "Move Inside Classroom Geofence"
         }
-        if cameraManager.detectedQRToken == nil {
+        if !cameraManager.isQRInFrame || cameraManager.detectedQRToken == nil {
             return "Aim Back Camera at Board QR"
         }
         if !cameraManager.isFaceDetected {
