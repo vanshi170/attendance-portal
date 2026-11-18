@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { fetchApi } from '../lib/api';
 import { useAuthStore } from '../lib/store';
-import { ChevronDown, User, LogOut, Settings, Calendar, PlaySquare, BookOpen } from 'lucide-react';
+import { ChevronDown, User, LogOut, Settings, Calendar, PlaySquare, BookOpen, ClipboardList } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GlobalHeader() {
@@ -98,6 +98,15 @@ export default function GlobalHeader() {
                   >
                     <BookOpen className="w-4 h-4" />
                     Choose Lecture
+                  </Link>
+
+                  <Link 
+                    href="/records"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 text-sm text-ink hover:bg-hot-pink/10 hover:text-hot-pink rounded-lg transition-colors"
+                  >
+                    <ClipboardList className="w-4 h-4" />
+                    Attendance Records
                   </Link>
                   
                   <Link 

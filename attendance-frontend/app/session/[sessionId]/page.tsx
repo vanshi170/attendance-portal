@@ -10,7 +10,7 @@ import { Button } from '../../../components/ui/button';
 import { LiveIndicator } from '../../../components/LiveIndicator';
 import { StatusBadge, cn } from '../../../components/StatusBadge';
 import { toast } from 'sonner';
-import { Check, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StudentAvatar } from '../../../components/StudentAvatar';
 
@@ -36,6 +36,7 @@ export default function SessionPage() {
   const [session, setSession] = useState<any>(null);
   const [records, setRecords] = useState<Record[]>([]);
   const [qrToken, setQrToken] = useState<string>('');
+  const [timeLeft, setTimeLeft] = useState<number>(10);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -59,18 +60,43 @@ export default function SessionPage() {
     loadSession();
   }, [sessionId, router]);
 
-  // Handle QR Token Rotation
+  // Handle QR Token Rotation (Refreshes every 10 seconds with precision progress tracking)
   useEffect(() => {
     if (!session) return;
+    
+    let isMounted = true;
+    let periodStart = Date.now();
+
     const fetchToken = async () => {
       try {
         const res = await fetchApi(`/sessions/${sessionId}/token`);
-        setQrToken(res.token);
+        if (isMounted && res.token) {
+          setQrToken(res.token);
+          periodStart = Date.now();
+          setTimeLeft(10);
+        }
       } catch (e) {}
     };
+
     fetchToken();
-    const interval = setInterval(fetchToken, 25000); // 25s rotation
-    return () => clearInterval(interval);
+
+    // High frequency tick (every 80ms) for butter-smooth progress strip reduction
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const elapsed = (now - periodStart) / 1000;
+      const remaining = Math.max(0, 10 - elapsed);
+      setTimeLeft(remaining);
+
+      if (elapsed >= 10) {
+        periodStart = Date.now();
+        fetchToken();
+      }
+    }, 80);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [session, sessionId]);
 
   // Handle Socket
@@ -176,12 +202,12 @@ export default function SessionPage() {
       <div className="flex-1 flex flex-col md:flex-row md:overflow-hidden">
         {/* Left Panel: QR */}
         <div className="w-full md:w-[45%] lg:w-[40%] bg-white/40 backdrop-blur-xl border-b md:border-b-0 md:border-r border-thistle/50 p-8 flex flex-col items-center justify-center relative shrink-0">
-          <div className="relative z-10 flex flex-col items-center">
-            <h2 className="text-2xl font-sora text-ink mb-8 text-center leading-tight">
+          <div className="relative z-10 flex flex-col items-center my-auto">
+            <h2 className="text-2xl font-sora text-ink mb-6 text-center leading-tight">
               Scan QR Code to<br />Mark Attendance
             </h2>
             
-            <div className="relative flex items-center justify-center mb-12">
+            <div className="relative flex items-center justify-center mb-6">
               <div className="absolute inset-0 rounded-full border-4 border-hot-pink/30 radar-ring z-0"></div>
               <div className="absolute inset-[-20%] rounded-full border-2 border-thistle/50 radar-ring" style={{ animationDelay: '0.5s' }}></div>
               <div className="bg-white p-4 rounded-2xl shadow-xl z-10 relative">
@@ -198,18 +224,21 @@ export default function SessionPage() {
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-ink">
-                <Check className="w-5 h-5 text-hot-pink" />
-                <span>GPS Enabled</span>
+            {/* Reducing Progress Bar Strip (Green -> Yellow -> Orange -> Red over 10s) */}
+            <div className="w-[272px] flex flex-col gap-1.5 mt-2">
+              <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden backdrop-blur-sm">
+                <div 
+                  className="h-full rounded-full transition-all duration-75 ease-linear"
+                  style={{
+                    width: `${(timeLeft / 10) * 100}%`,
+                    backgroundColor: `hsl(${Math.round((timeLeft / 10) * 125)}, 85%, 45%)`,
+                    boxShadow: `0 0 8px hsl(${Math.round((timeLeft / 10) * 125)}, 85%, 45%)`
+                  }}
+                />
               </div>
-              <div className="flex items-center gap-3 text-ink">
-                <Check className="w-5 h-5 text-hot-pink" />
-                <span>College Wi-Fi Accessible</span>
-              </div>
-              <div className="flex items-center gap-3 text-ink">
-                <Check className="w-5 h-5 text-hot-pink" />
-                <span>Face Clearly Visible</span>
+              <div className="flex justify-between items-center text-[11px] font-plex-mono text-muted/80 px-0.5">
+                <span>Rotating Security Token</span>
+                <span className="font-semibold text-ink">{Math.ceil(timeLeft)}s</span>
               </div>
             </div>
           </div>

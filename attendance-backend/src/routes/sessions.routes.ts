@@ -7,6 +7,55 @@ import { getIstTodayRange, isTimeWithinWindow } from './lectures.routes';
 
 const router = Router();
 
+// List sessions for authenticated teacher, optionally filtered by date or month
+router.get('/', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const teacherId = req.teacher!.id;
+    const { date, month } = req.query;
+
+    let whereClause: any = {
+      lecture: {
+        teacherId
+      }
+    };
+
+    if (date && typeof date === 'string') {
+      const startOfDay = new Date(`${date}T00:00:00+05:30`);
+      const endOfDay = new Date(`${date}T23:59:59.999+05:30`);
+      whereClause.startedAt = {
+        gte: startOfDay,
+        lte: endOfDay
+      };
+    } else if (month && typeof month === 'string') {
+      const [year, m] = month.split('-').map(Number);
+      const startOfMonth = new Date(Date.UTC(year, m - 1, 1));
+      const endOfMonth = new Date(Date.UTC(year, m, 0, 23, 59, 59, 999));
+      whereClause.startedAt = {
+        gte: startOfMonth,
+        lte: endOfMonth
+      };
+    }
+
+    const sessions = await prisma.attendanceSession.findMany({
+      where: whereClause,
+      orderBy: { startedAt: 'desc' },
+      include: {
+        lecture: {
+          include: { classroom: true }
+        },
+        records: {
+          include: { student: true },
+          orderBy: { student: { rollNo: 'asc' } }
+        }
+      }
+    });
+
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Start session
 router.post('/start', requireAuth, async (req: AuthRequest, res) => {
   try {
@@ -127,8 +176,8 @@ router.get('/:id/token', requireAuth, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Session not active' });
     }
 
-    // 30 seconds token
-    const token = jwt.sign({ sessionId }, process.env.JWT_SECRET || 'super-secret-jwt-key', { expiresIn: '30s' });
+    // 10 seconds token with brief network latency buffer
+    const token = jwt.sign({ sessionId }, process.env.JWT_SECRET || 'super-secret-jwt-key', { expiresIn: '15s' });
     res.json({ token });
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
@@ -243,6 +292,69 @@ router.patch('/:id/students/:studentId', requireAuth, async (req: AuthRequest, r
     });
 
     res.json({ ...updated, stats: { totalCount, presentCount, strengthPct } });
+  } catch (err) {
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Batch update attendance records for a session (active or closed)
+router.patch('/:id/records', requireAuth, async (req: AuthRequest, res) => {
+  try {
+    const id = String(req.params.id);
+    const { updates } = req.body; // array of { studentId: string, status: 'present' | 'absent' | 'late' }
+
+    const session = await prisma.attendanceSession.findUnique({
+      where: { id },
+      include: { lecture: true }
+    });
+
+    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (session.lecture.teacherId !== req.teacher?.id) {
+      return res.status(403).json({ error: 'Unauthorized for this session' });
+    }
+
+    if (Array.isArray(updates)) {
+      for (const item of updates) {
+        await prisma.attendanceRecord.updateMany({
+          where: { sessionId: id, studentId: String(item.studentId) },
+          data: { status: String(item.status), method: 'manual', markedAt: new Date() }
+        });
+      }
+    }
+
+    // Recalculate session statistics and persist
+    const allRecords = await prisma.attendanceRecord.findMany({
+      where: { sessionId: id },
+      include: { student: true },
+      orderBy: { student: { rollNo: 'asc' } }
+    });
+    const totalCount = allRecords.length;
+    const presentCount = allRecords.filter(r => r.status === 'present' || r.status === 'late').length;
+    const strengthPct = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(2)) : 0;
+
+    const updatedSession = await prisma.attendanceSession.update({
+      where: { id },
+      data: {
+        totalCount,
+        presentCount,
+        strengthPct
+      },
+      include: {
+        lecture: { include: { classroom: true } },
+        records: {
+          include: { student: true },
+          orderBy: { student: { rollNo: 'asc' } }
+        }
+      }
+    });
+
+    // Emit event
+    io.to(`session:${id}`).emit('attendance:batch_update', {
+      sessionId: id,
+      stats: { totalCount, presentCount, strengthPct }
+    });
+
+    res.json(updatedSession);
   } catch (err) {
     res.status(500).json({ error: 'Internal server error' });
   }
