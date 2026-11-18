@@ -133,14 +133,17 @@ export default function StudentLoginPage() {
 
         {isLogin ? (
           /* LOGIN FORM */
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" autoComplete="on">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 ml-1">PRN or College Email</label>
+              <label htmlFor="student-identifier" className="text-xs font-semibold text-slate-700 ml-1">PRN or College Email</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-sky-500 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="student-identifier"
+                  name="username"
                   type="text"
                   required
+                  autoComplete="username email"
                   placeholder="25070521001 or email"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
@@ -150,12 +153,15 @@ export default function StudentLoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 ml-1">Password</label>
+              <label htmlFor="student-password" className="text-xs font-semibold text-slate-700 ml-1">Password</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-sky-500 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="student-password"
+                  name="password"
                   type="password"
                   required
+                  autoComplete="current-password"
                   placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
@@ -181,7 +187,7 @@ export default function StudentLoginPage() {
           </form>
         ) : (
           /* REGISTRATION FORM */
-          <form onSubmit={handleRegister} className="space-y-3.5">
+          <form onSubmit={handleRegister} className="space-y-3.5" autoComplete="on">
             <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 ml-1">First Name</label>
@@ -189,6 +195,8 @@ export default function StudentLoginPage() {
                   <User className="w-3.5 h-3.5 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
+                    name="given-name"
+                    autoComplete="given-name"
                     required
                     placeholder="Arushi"
                     value={firstName}
@@ -202,6 +210,8 @@ export default function StudentLoginPage() {
                 <label className="text-xs font-semibold text-slate-700 ml-1">Last Name</label>
                 <input
                   type="text"
+                  name="family-name"
+                  autoComplete="family-name"
                   required
                   placeholder="Varghese"
                   value={lastName}
@@ -217,6 +227,7 @@ export default function StudentLoginPage() {
                 <Hash className="w-3.5 h-3.5 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
+                  name="username"
                   required
                   maxLength={11}
                   placeholder="25070521001"
@@ -233,6 +244,8 @@ export default function StudentLoginPage() {
                 <Mail className="w-3.5 h-3.5 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   required
                   placeholder="firstname.lastname.btech2025@sitnagpur.siu.edu.in"
                   value={email}
@@ -266,6 +279,8 @@ export default function StudentLoginPage() {
                 <Lock className="w-3.5 h-3.5 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
+                  name="new-password"
+                  autoComplete="new-password"
                   required
                   placeholder="••••••••"
                   value={registerPassword}

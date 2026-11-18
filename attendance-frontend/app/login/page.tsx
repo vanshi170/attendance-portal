@@ -96,37 +96,45 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="on">
             {!isLogin && (
               <div className="space-y-2">
                 <Input 
+                  id="name"
+                  name="name"
+                  type="text"
                   placeholder="Full Name" 
                   value={name} 
                   onChange={(e) => setName(e.target.value)} 
                   required 
+                  autoComplete="name"
                   className="bg-canvas text-ink border border-thistle rounded-full focus-visible:ring-hot-pink h-12 px-6"
                 />
               </div>
             )}
             <div className="space-y-2">
               <Input 
+                id="email"
+                name="email"
                 type="email" 
                 placeholder="Email Address" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 required 
-                autoComplete="off"
+                autoComplete="email username"
                 className="bg-canvas text-ink border border-thistle rounded-full focus-visible:ring-hot-pink h-12 px-6"
               />
             </div>
             <div className="space-y-2">
               <Input 
+                id="password"
+                name="password"
                 type="password" 
                 placeholder="Password" 
                 value={password} 
                 onChange={(e) => setPassword(e.target.value)} 
                 required 
-                autoComplete="new-password"
+                autoComplete={isLogin ? "current-password" : "new-password"}
                 className="bg-canvas text-ink border border-thistle rounded-full focus-visible:ring-hot-pink h-12 px-6"
               />
             </div>
