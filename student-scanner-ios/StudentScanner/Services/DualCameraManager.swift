@@ -35,6 +35,10 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
     private var baselineProfileFeaturePrint: VNFeaturePrintObservation?
     private var isAnalyzingQR = false
     private var isAnalyzingFace = false
+    private var lastQRDetectedTime: Date?
+    
+    // Control scanning pause (e.g., when error modal is displayed)
+    @Published var isScanningPaused: Bool = false
     
     override init() {
         super.init()
@@ -215,6 +219,14 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
         }
     }
     
+    func resetQR() {
+        lastQRDetectedTime = nil
+        DispatchQueue.main.async {
+            self.isQRInFrame = false
+            self.detectedQRToken = nil
+        }
+    }
+    
     func stopSession() {
         sessionQueue.async { [weak self] in
             self?.multiCamSession?.stopRunning()
@@ -237,12 +249,13 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
         // A. BACK CAMERA STREAM: Detect QR Code with Apple Vision
         // -------------------------------------------------------------
         if output === backDataOutput {
-            guard !isAnalyzingQR else { return }
+            guard !isAnalyzingQR, !isScanningPaused else { return }
             isAnalyzingQR = true
             
             let barcodeRequest = VNDetectBarcodesRequest { [weak self] request, error in
                 defer { self?.isAnalyzingQR = false }
                 guard let self = self else { return }
+                guard !self.isScanningPaused else { return }
                 
                 let barcodes = (request.results as? [VNBarcodeObservation])?.filter { $0.symbology == .qr } ?? []
                 
@@ -252,6 +265,7 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
                         token = token.components(separatedBy: "/scan/").last?.components(separatedBy: "?").first ?? token
                     }
                     
+                    self.lastQRDetectedTime = Date()
                     DispatchQueue.main.async {
                         self.isQRInFrame = true
                         if self.detectedQRToken != token {
@@ -260,10 +274,15 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
                         }
                     }
                 } else {
-                    // Frame has no QR code visible: reset instantly!
-                    DispatchQueue.main.async {
-                        self.isQRInFrame = false
-                        self.detectedQRToken = nil
+                    let now = Date()
+                    // 800ms smoothing grace period prevents 30fps violent flickering between green and grey
+                    if let last = self.lastQRDetectedTime, now.timeIntervalSince(last) < 0.8 {
+                        // Maintain active frame state during momentary frame drops
+                    } else {
+                        DispatchQueue.main.async {
+                            self.isQRInFrame = false
+                            self.detectedQRToken = nil
+                        }
                     }
                 }
             }
@@ -278,7 +297,7 @@ class DualCameraManager: NSObject, ObservableObject, AVCaptureVideoDataOutputSam
         // B. FRONT CAMERA STREAM: Detect Face & Match with Profile Photo
         // -------------------------------------------------------------
         if output === frontDataOutput {
-            guard !isAnalyzingFace else { return }
+            guard !isAnalyzingFace, !isScanningPaused else { return }
             isAnalyzingFace = true
             
             // 1. Detect Face Rectangle

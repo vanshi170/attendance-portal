@@ -41,7 +41,7 @@ class APIService: ObservableObject {
     }
     
     // MARK: - Register
-    func register(firstName: String, lastName: String, rollNo: String, email: String, password: String, section: String) async throws -> AuthResponse {
+    func register(firstName: String, lastName: String, rollNo: String, email: String, password: String, section: String, semester: Int = 1) async throws -> AuthResponse {
         let endpoint = baseURL.appendingPathComponent("/api/auth/register")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
@@ -56,6 +56,7 @@ class APIService: ObservableObject {
             "email": email,
             "password": password,
             "section": section,
+            "semester": semester,
             "isStudent": true
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)

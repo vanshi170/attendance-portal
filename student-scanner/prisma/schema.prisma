@@ -28,6 +28,7 @@ model Classroom {
 model Lecture {
   id          String    @id @default(uuid())
   subject     String
+  semester    Int?      @default(1)
   startTime   String    // "11:30 AM"
   endTime     String    // "12:30 PM"
   dayOfWeek   Int       // 0=Sun ... 6=Sat, for "today's lectures" filtering
@@ -45,6 +46,7 @@ model Student {
   name         String
   rollNo       String             @unique
   section      String?
+  semester     Int?               @default(1)
   email        String?
   password     String?
   photoUrl     String?            // Captured passport profile photo

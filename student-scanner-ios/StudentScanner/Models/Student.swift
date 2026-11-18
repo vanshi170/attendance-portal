@@ -6,6 +6,7 @@ struct Student: Codable, Identifiable {
     var rollNo: String
     var email: String
     var section: String?
+    var semester: Int?
     var photoUrl: String?
     var timetableUrl: String?
 }

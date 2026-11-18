@@ -10,6 +10,7 @@ struct RegisterView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var selectedSection = "AIML-A"
+    @State private var selectedSemester = 1
     
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -126,6 +127,28 @@ struct RegisterView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.sky.opacity(0.2), lineWidth: 1))
                         }
                         
+                        // Semester
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Semester (1 to 8)").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray)
+                            HStack(spacing: 5) {
+                                ForEach(1...8, id: \.self) { sem in
+                                    Button(action: { selectedSemester = sem }) {
+                                        Text("\(sem)")
+                                            .font(.system(size: 13, weight: selectedSemester == sem ? .bold : .medium))
+                                            .foregroundColor(selectedSemester == sem ? .white : Color(red: 0.1, green: 0.2, blue: 0.35))
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 34)
+                                            .background(selectedSemester == sem ? Color.blue : Color.white.opacity(0.85))
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(selectedSemester == sem ? Color.blue : Color.sky.opacity(0.3), lineWidth: 1)
+                                            )
+                                    }
+                                }
+                            }
+                        }
+                        
                         // Section
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Section").font(.system(size: 11, weight: .semibold)).foregroundColor(.gray)
@@ -211,7 +234,8 @@ struct RegisterView: View {
                     rollNo: rollNo,
                     email: email,
                     password: password,
-                    section: selectedSection
+                    section: selectedSection,
+                    semester: selectedSemester
                 )
                 await MainActor.run {
                     self.isLoading = false

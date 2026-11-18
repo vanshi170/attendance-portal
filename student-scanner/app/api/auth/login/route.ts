@@ -61,6 +61,7 @@ export async function POST(request: Request) {
         rollNo: student.rollNo,
         email: student.email,
         section: student.section,
+        semester: student.semester,
         photoUrl: student.photoUrl,
         timetableUrl: student.timetableUrl,
       },

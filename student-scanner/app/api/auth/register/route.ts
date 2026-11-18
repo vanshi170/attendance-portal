@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { firstName, lastName, rollNo, email, password, section } = body;
+    const { firstName, lastName, rollNo, email, password, section, semester } = body;
 
     // 1. Validation checks
     if (!firstName || !lastName || !rollNo || !email || !password || !section) {
@@ -39,6 +39,8 @@ export async function POST(request: Request) {
 
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
+    const studentSemester = semester ? parseInt(semester) : 1;
+
     // 4. Upsert student record in Neon DB
     // If student was pre-seeded by rollNo, update their credentials; otherwise create new.
     const student = await prisma.student.upsert({
@@ -48,6 +50,7 @@ export async function POST(request: Request) {
         email: cleanEmail,
         password: String(password),
         section: String(section).toUpperCase(),
+        semester: studentSemester,
       },
       create: {
         rollNo: cleanRollNo,
@@ -55,6 +58,7 @@ export async function POST(request: Request) {
         email: cleanEmail,
         password: String(password),
         section: String(section).toUpperCase(),
+        semester: studentSemester,
       },
     });
 
@@ -70,6 +74,7 @@ export async function POST(request: Request) {
         rollNo: student.rollNo,
         email: student.email,
         section: student.section,
+        semester: student.semester,
         photoUrl: student.photoUrl,
         timetableUrl: student.timetableUrl,
       },

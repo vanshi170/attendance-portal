@@ -17,6 +17,7 @@ interface Classroom {
 interface Lecture {
   id: string;
   subject: string;
+  semester?: number;
   startTime: string;
   endTime: string;
   dayOfWeek: number;
@@ -68,6 +69,7 @@ export default function TimetablePage() {
   // Form State
   const [formDay, setFormDay] = useState(1);
   const [formSubject, setFormSubject] = useState('');
+  const [formSemester, setFormSemester] = useState<number>(1);
   const [formClassroom, setFormClassroom] = useState('');
   const [formStart, setFormStart] = useState('09:00');
   const [formEnd, setFormEnd] = useState('10:00');
@@ -110,6 +112,7 @@ export default function TimetablePage() {
     setEditingId(null);
     setFormDay(day);
     setFormSubject('');
+    setFormSemester(1);
     setFormClassroom('');
     setFormStart('09:00');
     setFormEnd('10:00');
@@ -121,6 +124,7 @@ export default function TimetablePage() {
     setEditingId(lec.id);
     setFormDay(lec.dayOfWeek);
     setFormSubject(lec.subject);
+    setFormSemester(lec.semester || 1);
     setFormClassroom(lec.classroomId);
     
     // Convert "09:00 AM" to "09:00" for input type="time"
@@ -158,6 +162,7 @@ export default function TimetablePage() {
     
     const payload = {
       subject: formSubject,
+      semester: Number(formSemester) || 1,
       classroomId: formClassroom,
       startTime: formatTime(formStart),
       endTime: formatTime(formEnd),
@@ -306,7 +311,11 @@ export default function TimetablePage() {
                       </div>
                     )}
                     <h3 className="font-bold text-ink text-sm leading-tight mb-1">{lec.subject}</h3>
-                    <p className="text-xs text-muted mb-2">{lec.classroom?.code}</p>
+                    <div className="flex items-center gap-1.5 text-xs text-muted mb-2">
+                      <span className="font-semibold text-hot-pink">Sem {lec.semester || 1}</span>
+                      <span>·</span>
+                      <span>{lec.classroom?.code || 'CL'}</span>
+                    </div>
                     
                     {/* Time Window */}
                     <div className="flex items-center gap-1.5 text-xs font-plex-mono text-hot-pink mb-2">
@@ -390,17 +399,33 @@ export default function TimetablePage() {
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-ink">Select Classroom</label>
-                <select
-                  required
-                  value={formClassroom}
-                  onChange={(e) => setFormClassroom(e.target.value)}
-                  className="w-full bg-canvas text-ink border border-thistle rounded-xl h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
-                >
-                  <option value="" disabled>Select Classroom</option>
-                  {classrooms.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-ink">Select Semester</label>
+                  <select
+                    required
+                    value={formSemester}
+                    onChange={(e) => setFormSemester(parseInt(e.target.value))}
+                    className="w-full bg-canvas text-ink border border-thistle rounded-xl h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8].map(s => (
+                      <option key={s} value={s}>Semester {s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-ink">Select Classroom</label>
+                  <select
+                    required
+                    value={formClassroom}
+                    onChange={(e) => setFormClassroom(e.target.value)}
+                    className="w-full bg-canvas text-ink border border-thistle rounded-xl h-12 px-4 focus:ring-2 focus:ring-hot-pink outline-none cursor-pointer"
+                  >
+                    <option value="" disabled>Select Classroom</option>
+                    {classrooms.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

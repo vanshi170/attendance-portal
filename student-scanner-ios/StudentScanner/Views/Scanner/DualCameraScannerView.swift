@@ -246,14 +246,6 @@ struct DualCameraScannerView: View {
                 .frame(maxHeight: .infinity)
                 .padding(.horizontal, 14)
                 
-                // Feedback Error Message
-                if let err = errorMessage {
-                    Text(err)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 16)
-                }
                 
                 // Bottom Capture Action Button
                 Button(action: handleCaptureAndVerify) {
@@ -289,6 +281,15 @@ struct DualCameraScannerView: View {
             if let msg = successMessage {
                 AttendanceSuccessView(message: msg) {
                     dismiss()
+                }
+            }
+            
+            // Error Overlay: Clean modal presentation preventing rapid frame cycling or glitching
+            if let err = errorMessage {
+                AttendanceErrorModalView(message: err) {
+                    self.errorMessage = nil
+                    self.cameraManager.resetQR()
+                    self.cameraManager.isScanningPaused = false
                 }
             }
         }
@@ -378,9 +379,79 @@ struct DualCameraScannerView: View {
                 await MainActor.run {
                     self.isSubmitting = false
                     self.errorMessage = error.localizedDescription
+                    self.cameraManager.isScanningPaused = true
                     UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
             }
         }
+    }
+}
+
+// MARK: - Attendance Error Modal View (Displays exact backend error cleanly)
+struct AttendanceErrorModalView: View {
+    let message: String
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.7).ignoresSafeArea()
+            
+            VStack(spacing: 20) {
+                // Red badge
+                ZStack {
+                    Circle()
+                        .fill(Color.red.opacity(0.15))
+                        .frame(width: 80, height: 80)
+                    Circle()
+                        .fill(Color.red)
+                        .frame(width: 60, height: 60)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .padding(.top, 10)
+                
+                VStack(spacing: 8) {
+                    Text(message)
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(red: 0.05, green: 0.15, blue: 0.3))
+                        .multilineTextAlignment(.center)
+                    
+                    Text(detailForError(message))
+                        .font(.system(size: 13))
+                        .foregroundColor(.gray)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 10)
+                }
+                
+                Button(action: onDismiss) {
+                    Text("Try Again")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            LinearGradient(colors: [Color.red.opacity(0.85), Color.red], startPoint: .leading, endPoint: .trailing)
+                        )
+                        .cornerRadius(24)
+                }
+                .padding(.top, 8)
+            }
+            .padding(24)
+            .background(Color.white)
+            .cornerRadius(24)
+            .shadow(color: Color.black.opacity(0.2), radius: 25)
+            .padding(.horizontal, 30)
+        }
+    }
+    
+    private func detailForError(_ err: String) -> String {
+        if err.contains("Student does not exist") {
+            return "Your PRN or name was not found in the student database. Please check your credentials."
+        }
+        if err.contains("Wrong class") {
+            return "This active attendance session is not for your class section or enrolled lecture."
+        }
+        return "Please align your camera with the board QR code and try again."
     }
 }

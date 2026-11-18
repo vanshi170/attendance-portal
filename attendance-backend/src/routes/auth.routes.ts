@@ -15,7 +15,7 @@ const registerSchema = z.object({
 
 router.post('/register', async (req, res) => {
   try {
-    const { rollNo, section, firstName, lastName } = req.body;
+    const { rollNo, section, semester, firstName, lastName } = req.body;
     
     // Check if this is a Student Registration
     if (rollNo || req.body.isStudent || section) {
@@ -24,6 +24,7 @@ router.post('/register', async (req, res) => {
       const rawPassword = String(req.body.password || '');
       const fullName = (req.body.name || `${firstName || ''} ${lastName || ''}`).trim();
       const studentSection = String(section || 'AIML-A').toUpperCase();
+      const studentSemester = semester ? parseInt(semester) : 1;
 
       if (!cleanRollNo || !/^\d{11}$/.test(cleanRollNo)) {
         return res.status(400).json({ error: 'PRN must be an exact 11-digit number (e.g. 25070521001).' });
@@ -46,6 +47,7 @@ router.post('/register', async (req, res) => {
           email: cleanEmail,
           password: rawPassword,
           section: studentSection,
+          semester: studentSemester,
         },
         create: {
           rollNo: cleanRollNo,
@@ -53,6 +55,7 @@ router.post('/register', async (req, res) => {
           email: cleanEmail,
           password: rawPassword,
           section: studentSection,
+          semester: studentSemester,
         },
       });
 
@@ -66,6 +69,7 @@ router.post('/register', async (req, res) => {
           rollNo: student.rollNo,
           email: student.email,
           section: student.section,
+          semester: student.semester,
           photoUrl: student.photoUrl,
           timetableUrl: student.timetableUrl,
         },
@@ -158,6 +162,7 @@ router.post('/login', async (req, res) => {
           rollNo: student.rollNo,
           email: student.email,
           section: student.section,
+          semester: student.semester,
           photoUrl: student.photoUrl,
           timetableUrl: student.timetableUrl,
         },

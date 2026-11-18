@@ -36,12 +36,17 @@ export async function POST(request: Request) {
         }),
       });
 
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
-        const data = await response.json();
         return NextResponse.json({
           success: true,
           message: data.message || 'Attendance marked successfully!',
         });
+      } else {
+        return NextResponse.json(
+          { error: data.error || data.message || 'Verification failed' },
+          { status: response.status }
+        );
       }
     } catch (backendErr) {
       console.warn('Teacher backend relay failed, falling back to direct DB update:', backendErr);
@@ -99,7 +104,7 @@ export async function POST(request: Request) {
 
     if (!student) {
       return NextResponse.json(
-        { error: 'Student PRN not recognized in registry.' },
+        { error: 'Student does not exist' },
         { status: 404 }
       );
     }
@@ -116,7 +121,7 @@ export async function POST(request: Request) {
 
     if (!record) {
       return NextResponse.json(
-        { error: 'You are not enrolled in this lecture session. You are not in the class list.' },
+        { error: 'Wrong class' },
         { status: 403 }
       );
     }

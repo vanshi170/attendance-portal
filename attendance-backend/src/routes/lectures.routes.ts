@@ -94,10 +94,12 @@ router.get('/today', requireAuth, async (req: AuthRequest, res) => {
       return {
         id: lec.id,
         subject: lec.subject,
+        semester: lec.semester || 1,
         startTime: lec.startTime,
         endTime: lec.endTime,
         dayOfWeek: lec.dayOfWeek,
         isTemporary: lec.isTemporary,
+        classroomId: lec.classroomId,
         classroom: lec.classroom,
         isWithinTimeWindow,
         attendanceDone: hasClosedSession,
@@ -134,6 +136,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
     const enriched = lectures.map(lec => ({
       id: lec.id,
       subject: lec.subject,
+      semester: lec.semester || 1,
       startTime: lec.startTime,
       endTime: lec.endTime,
       dayOfWeek: lec.dayOfWeek,
@@ -154,11 +157,12 @@ router.get('/', requireAuth, async (req: AuthRequest, res) => {
 router.post('/', requireAuth, async (req: AuthRequest, res) => {
   try {
     const teacherId = req.teacher!.id;
-    const { subject, startTime, endTime, dayOfWeek, classroomId, isTemporary } = req.body;
+    const { subject, semester, startTime, endTime, dayOfWeek, classroomId, isTemporary } = req.body;
     
     const lecture = await prisma.lecture.create({
       data: {
         subject,
+        semester: semester ? parseInt(semester) : 1,
         startTime,
         endTime,
         dayOfWeek: parseInt(dayOfWeek),
@@ -178,7 +182,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
   try {
     const teacherId = req.teacher!.id;
     const lectureId = String(req.params.id);
-    const { subject, startTime, endTime, dayOfWeek, classroomId, isTemporary } = req.body;
+    const { subject, semester, startTime, endTime, dayOfWeek, classroomId, isTemporary } = req.body;
 
     const existing = await prisma.lecture.findUnique({ where: { id: lectureId } });
     if (!existing || existing.teacherId !== teacherId) {
@@ -189,6 +193,7 @@ router.put('/:id', requireAuth, async (req: AuthRequest, res) => {
       where: { id: lectureId },
       data: {
         subject,
+        semester: semester ? parseInt(semester) : (existing.semester || 1),
         startTime,
         endTime,
         dayOfWeek: parseInt(dayOfWeek),

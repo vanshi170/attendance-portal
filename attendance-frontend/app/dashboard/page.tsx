@@ -18,6 +18,7 @@ interface Classroom {
 interface Lecture {
   id: string;
   subject: string;
+  semester?: number;
   startTime: string;
   endTime: string;
   dayOfWeek: number;
@@ -147,7 +148,7 @@ export default function DashboardPage() {
                   >
                     {eligibleLectures.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.subject} · {l.startTime} – {l.endTime}
+                        {l.subject} · Sem {l.semester || 1} · {l.startTime} – {l.endTime}
                       </option>
                     ))}
                   </select>
@@ -169,10 +170,18 @@ export default function DashboardPage() {
                 </div>
 
                 {selectedLecture && (
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-ink">Classroom</label>
-                    <div className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 flex items-center cursor-not-allowed">
-                      {selectedLecture.classroom?.code || 'CL'}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-ink">Semester</label>
+                      <div className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 flex items-center font-medium cursor-not-allowed">
+                        Semester {selectedLecture.semester || 1}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-ink">Classroom</label>
+                      <div className="w-full bg-canvas text-ink border border-thistle rounded-full h-12 px-4 flex items-center font-medium cursor-not-allowed">
+                        {selectedLecture.classroom?.code || 'CL'}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -227,7 +236,10 @@ export default function DashboardPage() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-ink text-base">{lec.subject}</h3>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium">
+                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-hot-pink/10 text-hot-pink font-semibold">
+                          Sem {lec.semester || 1}
+                        </span>
+                        <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium">
                           {lec.classroom?.code || 'CL'}
                         </span>
                       </div>

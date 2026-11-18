@@ -21,6 +21,7 @@ export default function StudentLoginPage() {
   const [rollNo, setRollNo] = useState('');
   const [email, setEmail] = useState('');
   const [section, setSection] = useState('A');
+  const [semester, setSemester] = useState('1');
   const [registerPassword, setRegisterPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -84,6 +85,7 @@ export default function StudentLoginPage() {
           rollNo: rollNo.trim(),
           email: email.trim().toLowerCase(),
           section,
+          semester: parseInt(semester) || 1,
           password: registerPassword,
         }),
       });
@@ -255,20 +257,37 @@ export default function StudentLoginPage() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700 ml-1">Class Section</label>
-              <div className="relative">
-                <School className="w-3.5 h-3.5 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 ml-1">Class Section</label>
+                <div className="relative">
+                  <School className="w-3.5 h-3.5 text-sky-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <select
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                    className="w-full bg-[#f8fbff] text-slate-900 border border-sky-200 rounded-full h-11 pl-9 pr-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  >
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                    <option value="C">Section C</option>
+                    <option value="D">Section D</option>
+                    <option value="E">Section E</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 ml-1">Semester</label>
                 <select
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  className="w-full bg-[#f8fbff] text-slate-900 border border-sky-200 rounded-full h-11 pl-9 pr-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
+                  value={semester}
+                  onChange={(e) => setSemester(e.target.value)}
+                  className="w-full bg-[#f8fbff] text-slate-900 border border-sky-200 rounded-full h-11 px-4 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-sky-400"
                 >
-                  <option value="A">Section A</option>
-                  <option value="B">Section B</option>
-                  <option value="C">Section C</option>
-                  <option value="D">Section D</option>
-                  <option value="E">Section E</option>
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map((s) => (
+                    <option key={s} value={s}>
+                      Semester {s}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

@@ -108,7 +108,7 @@ router.post('/scan', async (req, res) => {
     const cleanRollNo = String(rollNo).trim();
     const student = await prisma.student.findUnique({ where: { rollNo: cleanRollNo } });
     if (!student) {
-      return res.status(404).json({ error: 'Student PRN not registered in the system.' });
+      return res.status(404).json({ error: 'Student does not exist', message: 'Student does not exist' });
     }
 
     // Verify Student is in the Lecture Session Roster (Class list)
@@ -118,7 +118,8 @@ router.post('/scan', async (req, res) => {
 
     if (!record) {
       return res.status(403).json({
-        error: 'You are not enrolled in this lecture session. You are not in the class list.'
+        error: 'Wrong class',
+        message: 'Wrong class'
       });
     }
 
