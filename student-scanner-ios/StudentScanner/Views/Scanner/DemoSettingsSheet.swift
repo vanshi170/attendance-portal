@@ -5,13 +5,11 @@ struct DemoSettingsSheet: View {
     @ObservedObject var networkManager: NetworkManager
     @Environment(\.dismiss) var dismiss
     
-    let connectedWifiOptions = ["Rishab Thutheja", "SYMBI_NGP_STUDENT", "Other / Cellular Data"]
-    let requiredWifiOptions = ["SYMBI_NGP_STUDENT", "Rishab Thutheja"]
-    
     var body: some View {
         NavigationStack {
             Form {
-                Section(header: Text("Live Location & GPS Sensor")) {
+                // Section 1: Live Campus GPS Geofence (Official SIT Nagpur: 21°07'35.0"N 79°09'36.4"E)
+                Section(header: Text("Live Campus Location & GPS Sensor")) {
                     if let loc = locationManager.userLocation {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Current GPS Coordinates:")
@@ -20,67 +18,99 @@ struct DemoSettingsSheet: View {
                             Text(String(format: "%.6f° N, %.6f° E (±%.0fm)", loc.coordinate.latitude, loc.coordinate.longitude, loc.horizontalAccuracy))
                                 .font(.system(size: 13, design: .monospaced))
                             
-                            Text("Distance to \(locationManager.activeTargetName):")
+                            Text("Target: SIT Nagpur Campus (500m Geofence)")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.gray)
                                 .padding(.top, 4)
-                            Text(String(format: "%.0f meters", locationManager.distanceToTargetMeters))
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(locationManager.isInsideGeofence ? .green : .red)
+                            
+                            HStack {
+                                Text("Distance to Campus:")
+                                    .font(.system(size: 12))
+                                Spacer()
+                                Text(String(format: "%.0f meters", locationManager.distanceToTargetMeters))
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(locationManager.isInsideGeofence ? .green : .red)
+                            }
+                            
+                            HStack {
+                                Text("Geofence Status:")
+                                    .font(.system(size: 12))
+                                Spacer()
+                                Text(locationManager.isInsideGeofence ? "INSIDE CAMPUS ZONE ✓" : "OUTSIDE CAMPUS ZONE ✕")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(locationManager.isInsideGeofence ? .green : .red)
+                            }
+                            .padding(.top, 2)
                         }
                         .padding(.vertical, 4)
                     } else {
                         Text("Acquiring GPS sensor...")
                             .foregroundColor(.gray)
                     }
-                    
-                    Picker("Geofence Target", selection: Binding(
-                        get: { locationManager.activeTargetName == "SIT Campus" ? "campus" : "test" },
-                        set: { locationManager.selectTarget(site: $0) }
-                    )) {
-                        Text("Test Site (Home)").tag("test")
-                        Text("SIT Nagpur Campus").tag("campus")
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    Toggle("Demo GPS Bypass", isOn: $locationManager.isDemoBypassEnabled)
                 }
                 
+                // Section 2: Wi-Fi Verification (Verified strictly by actual connected iOS network)
                 Section(
-                    header: Text("Wi-Fi Validation"),
-                    footer: Text("If Connected Wi-Fi does not match the Required Classroom Wi-Fi, attendance is blocked. Enable Demo Wi-Fi Bypass to override.")
+                    header: Text("Classroom Wi-Fi Verification"),
+                    footer: Text("Wi-Fi is verified strictly by your iPhone's active connected network interface. You must connect to SYMBI_NGP_STUDENT. If connected to any other Wi-Fi or on mobile data, scanning is blocked.")
                 ) {
-                    Picker("Connected Wi-Fi", selection: $networkManager.currentSSID) {
-                        ForEach(connectedWifiOptions, id: \.self) { ssid in
-                            Text(ssid).tag(ssid)
-                        }
-                    }
-                    
-                    Picker("Required Wi-Fi", selection: $networkManager.requiredSSID) {
-                        ForEach(requiredWifiOptions, id: \.self) { ssid in
-                            Text(ssid).tag(ssid)
-                        }
+                    HStack {
+                        Text("Actual Connected Wi-Fi")
+                        Spacer()
+                        Text(networkManager.currentSSID)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(networkManager.isWifiValid ? .green : .red)
                     }
                     
                     HStack {
-                        Text("Validation Status")
+                        Text("Required Classroom Wi-Fi")
+                        Spacer()
+                        Text(networkManager.requiredSSID)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundColor(.primary)
+                    }
+                    
+                    HStack {
+                        Text("Verification Status")
                         Spacer()
                         if networkManager.isWifiValid {
-                            Text("MATCH ✓")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.green)
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                Text("MATCH (AUTHORIZED)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.green)
+                            }
                         } else {
-                            Text("MISMATCH ✕")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.red)
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                Text("MISMATCH (BLOCKED)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.red)
+                            }
                         }
                     }
                     
+                    // Demo Wi-Fi Bypass Toggle (retained as explicitly requested)
                     Toggle("Demo Wi-Fi Bypass", isOn: $networkManager.isDemoBypassEnabled)
+                    
+                    Button(action: {
+                        networkManager.fetchConnectedSSID()
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Re-check Connected Wi-Fi")
+                        }
+                        .font(.system(size: 13, weight: .medium))
+                    }
                 }
             }
-            .navigationTitle("Scanner Demo Settings")
+            .navigationTitle("Scanner Sensor Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                networkManager.fetchConnectedSSID()
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }

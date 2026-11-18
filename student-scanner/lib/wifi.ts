@@ -11,11 +11,6 @@ export const AUTHORIZED_WIFI_NETWORKS: AuthorizedNetwork[] = [
     authType: 'WPA3-Personal / WPA2-Personal',
     description: 'Official Symbiosis Nagpur Student Wi-Fi Access Point',
   },
-  {
-    ssid: 'Rishab Thutheja',
-    authType: 'WPA3-Personal / WPA2-Personal',
-    description: 'Authorized Campus Access Router',
-  },
 ];
 
 export function isAuthorizedWifi(ssid: string): boolean {

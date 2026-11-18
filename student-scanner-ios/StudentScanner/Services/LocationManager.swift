@@ -10,16 +10,13 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var userLocation: CLLocation?
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published var isInsideGeofence: Bool = false
-    @Published var activeTargetName: String = "Test Site (Home)"
+    @Published var activeTargetName: String = "SIT Nagpur Campus"
     @Published var distanceToTargetMeters: Double = 0.0
-    @Published var isDemoBypassEnabled: Bool = false {
-        didSet { recalculateGeofence() }
-    }
     
-    // Target coordinate (defaults to the user's test location)
-    @Published var targetCoordinate = CLLocationCoordinate2D(
-        latitude: AppConfig.testLatitude,
-        longitude: AppConfig.testLongitude
+    // Target coordinate: Symbiosis Institute of Technology, Nagpur (21°07'35.0"N 79°09'36.4"E)
+    let targetCoordinate = CLLocationCoordinate2D(
+        latitude: AppConfig.campusLatitude,
+        longitude: AppConfig.campusLongitude
     )
     
     override init() {
@@ -32,23 +29,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     func requestPermission() {
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
-    }
-    
-    func selectTarget(site: String) {
-        if site == "campus" {
-            activeTargetName = "SIT Campus"
-            targetCoordinate = CLLocationCoordinate2D(
-                latitude: AppConfig.campusLatitude,
-                longitude: AppConfig.campusLongitude
-            )
-        } else {
-            activeTargetName = "Test Site (Home)"
-            targetCoordinate = CLLocationCoordinate2D(
-                latitude: AppConfig.testLatitude,
-                longitude: AppConfig.testLongitude
-            )
-        }
-        recalculateGeofence()
     }
     
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -69,12 +49,6 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     private func recalculateGeofence() {
-        if isDemoBypassEnabled {
-            isInsideGeofence = true
-            distanceToTargetMeters = 0.0
-            return
-        }
-        
         guard let userLoc = userLocation else {
             isInsideGeofence = false
             return
@@ -84,7 +58,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
         let distance = userLoc.distance(from: targetLoc)
         self.distanceToTargetMeters = distance
         
-        // 500m geofence radius
-        self.isInsideGeofence = distance <= 500.0
+        // 500m geofence radius around SIT Nagpur campus
+        self.isInsideGeofence = distance <= AppConfig.campusRadiusMeters
     }
 }

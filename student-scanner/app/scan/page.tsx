@@ -47,7 +47,7 @@ export default function DualCameraScannerPage() {
   const [wifiValid, setWifiValid] = useState(false);
   const [gpsValid, setGpsValid] = useState(false);
   const [geofenceReport, setGeofenceReport] = useState<GeofenceResult | null>(null);
-  const [detectedWifi, setDetectedWifi] = useState<string>('Rishab Thutheja');
+  const [detectedWifi, setDetectedWifi] = useState<string>('SYMBI_NGP_STUDENT');
   const [effectiveCoords, setEffectiveCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Demo Panel Modal
@@ -781,35 +781,12 @@ export default function DualCameraScannerPage() {
               </button>
             </div>
 
-            {/* Quick Location Presets */}
+            {/* Geofence Target Information */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700">Select Geofence Target</label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDemoSettings({ locationMode: 'test-site' })}
-                  className={`p-2.5 rounded-2xl text-left border text-xs ${
-                    demoSettings.locationMode === 'test-site'
-                      ? 'bg-sky-50 border-sky-500 font-bold text-sky-950 ring-2 ring-sky-300'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  <p className="font-bold">Test Location</p>
-                  <p className="text-[10px] text-slate-500">Rishab Thutheja</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setDemoSettings({ locationMode: 'sit-campus' })}
-                  className={`p-2.5 rounded-2xl text-left border text-xs ${
-                    demoSettings.locationMode === 'sit-campus'
-                      ? 'bg-sky-50 border-sky-500 font-bold text-sky-950 ring-2 ring-sky-300'
-                      : 'bg-white border-slate-200 text-slate-700'
-                  }`}
-                >
-                  <p className="font-bold">SIT Campus</p>
-                  <p className="text-[10px] text-slate-500">Symbiosis Nagpur</p>
-                </button>
+              <label className="text-xs font-semibold text-slate-700">Official Geofence Zone</label>
+              <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 text-xs">
+                <p className="font-bold text-sky-950">SIT Nagpur Campus</p>
+                <p className="text-[11px] text-slate-600 font-mono mt-0.5">21°07&apos;35.0&quot;N 79°09&apos;36.4&quot;E (500m geofence)</p>
               </div>
             </div>
 
@@ -821,9 +798,9 @@ export default function DualCameraScannerPage() {
                 onChange={(e) => setDemoSettings({ selectedWifi: e.target.value })}
                 className="w-full bg-[#f8fbff] text-slate-800 border border-sky-200 rounded-2xl h-11 px-3 text-xs font-medium"
               >
-                <option value="Rishab Thutheja">Rishab Thutheja (Authorized Test Wi-Fi - Passes ✅)</option>
                 <option value="SYMBI_NGP_STUDENT">SYMBI_NGP_STUDENT (Official College Wi-Fi - Passes ✅)</option>
                 <option value="Unknown_Home_WiFi">Unknown_Home_WiFi (Invalid Network - Fails ❌)</option>
+                <option value="Cellular_Mobile_Data">Cellular / Mobile Data (Invalid Network - Fails ❌)</option>
               </select>
             </div>
 

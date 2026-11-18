@@ -19,14 +19,8 @@ struct AppConfig {
     static let campusLongitude = 79.160111
     static let campusRadiusMeters: Double = 500.0
 
-    // User's Test Location (from your prompt)
-    static let testLatitude = 21.151361423093896
-    static let testLongitude = 79.12705572951128
-    static let testRadiusMeters: Double = 500.0
-
-    // Authorized Wi-Fi SSIDs
+    // Authorized Campus Wi-Fi SSIDs
     static let authorizedSSIDs = [
-        "SYMBI_NGP_STUDENT",
-        "Rishab Thutheja"
+        "SYMBI_NGP_STUDENT"
     ]
 }

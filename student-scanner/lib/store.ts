@@ -37,11 +37,11 @@ export const useStudentStore = create<StudentState>((set) => ({
   token: null,
   demoSettings: {
     enabled: true, // Enabled for smooth testing & demo verification
-    selectedWifi: 'Rishab Thutheja', // Default to test network per user's setup
-    lat: 21.151361423093896,
-    lng: 79.12705572951128,
+    selectedWifi: 'SYMBI_NGP_STUDENT', // Default to SIT student Wi-Fi
+    lat: 21.126389,
+    lng: 79.160111,
     locationMode: 'live', // Use real device GPS by default
-    useCampusLocation: false,
+    useCampusLocation: true,
   },
   setAuth: (student, token) => {
     if (typeof window !== 'undefined') {

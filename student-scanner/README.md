@@ -30,7 +30,7 @@ Built with **Next.js 16**, **React 19**, **Tailwind CSS**, and **Neon Serverless
 
 ### 5. 🛡️ Dual-Factor Zero-Trust Validation Gate
 Before the dual-camera scanner can be accessed, the device must satisfy:
-1. **Campus Wi-Fi Check:** Must be connected to `SYMBI_NGP_STUDENT` or `Rishab Thutheja`.
+1. **Campus Wi-Fi Check:** Must be connected to `SYMBI_NGP_STUDENT`.
 2. **GPS Geofencing:** Device location must be within $1,500\text{ m}$ of SIT Nagpur Campus ($21.1258^\circ\text{ N}, 79.1585^\circ\text{ E}$).
 - **Interactive Test / Demo Panel:** Allows developers to toggle simulated campus GPS coordinates and test Wi-Fi SSIDs during offline or remote testing.
 

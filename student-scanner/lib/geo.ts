@@ -13,29 +13,19 @@ export interface GeofenceZone {
 
 export const AUTHORIZED_ZONES: GeofenceZone[] = [
   {
-    id: 'test-site',
-    name: 'Rishab Thutheja Test Location',
-    tag: 'Testing & Development Site',
-    lat: 21.151361423093896,
-    lng: 79.12705572951128,
-    radiusMeters: 1000, // 1 km radius tolerance for mobile GPS testing
-    mapsUrl: 'https://maps.app.goo.gl/eeLwdCKbX9wU2YjEA',
-    isTestSite: true,
-  },
-  {
     id: 'sit-campus',
     name: 'Symbiosis Institute of Technology (SIT), Nagpur',
-    tag: 'Official Campus Demonstration',
+    tag: 'Official Campus Zone',
     lat: 21.126389,
     lng: 79.160111,
-    radiusMeters: 1500, // 1.5 km campus boundary radius
+    radiusMeters: 500, // 500m geofence radius
     mapsUrl: 'https://maps.app.goo.gl/knRAGjXMYEd7rdhT6',
     isTestSite: false,
   },
 ];
 
+export const CAMPUS_COORDINATES = AUTHORIZED_ZONES[0];
 export const TEST_SITE_COORDINATES = AUTHORIZED_ZONES[0];
-export const CAMPUS_COORDINATES = AUTHORIZED_ZONES[1];
 
 // Haversine formula to compute accurate distance between two GPS coordinates in meters
 export function getDistanceBetweenCoordinatesMeters(

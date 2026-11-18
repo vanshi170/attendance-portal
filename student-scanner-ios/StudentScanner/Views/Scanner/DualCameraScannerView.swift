@@ -296,6 +296,7 @@ struct DualCameraScannerView: View {
         .onAppear {
             cameraManager.checkPermissionsAndStart()
             locationManager.requestPermission()
+            networkManager.fetchConnectedSSID()
             
             // Load student profile photo for biometric anti-proxy matching
             if let photoUrl = appState.currentStudent?.photoUrl, !photoUrl.isEmpty {
