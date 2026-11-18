@@ -6,30 +6,40 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { rollNo, photoUrl } = body;
+    const { studentId, rollNo, photoUrl, photoBase64 } = body || {};
+    const finalPhoto = photoUrl || photoBase64;
 
-    if (!rollNo || !photoUrl) {
+    if (!finalPhoto || (!rollNo && !studentId)) {
       return NextResponse.json(
-        { error: 'PRN and photo data are required.' },
+        { error: 'PRN/Student ID and photo data are required.' },
         { status: 400 }
       );
     }
 
-    const student = await prisma.student.findUnique({
-      where: { rollNo },
+    const cleanRollNo = rollNo ? String(rollNo).trim() : undefined;
+    const cleanStudentId = studentId ? String(studentId).trim() : undefined;
+
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          ...(cleanStudentId ? [{ id: cleanStudentId }] : []),
+          ...(cleanRollNo ? [{ rollNo: cleanRollNo }] : []),
+        ],
+      },
     });
 
     if (!student) {
-      return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+      return NextResponse.json({ error: 'Student not found in database.' }, { status: 404 });
     }
 
     // Save passport photo permanently
     const updated = await prisma.student.update({
-      where: { rollNo },
-      data: { photoUrl },
+      where: { id: student.id },
+      data: { photoUrl: finalPhoto },
     });
 
     return NextResponse.json({
+      success: true,
       message: 'Passport profile photo saved successfully.',
       photoUrl: updated.photoUrl,
     });

@@ -77,44 +77,58 @@ class APIService: ObservableObject {
     }
     
     // MARK: - Upload Photo
-    func uploadPhoto(studentId: String, image: UIImage) async throws -> String {
+    func uploadPhoto(studentId: String, rollNo: String? = nil, image: UIImage) async throws -> String {
         let endpoint = baseURL.appendingPathComponent("/api/student/photo")
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 30.0
         
-        let boundary = "Boundary-\(UUID().uuidString)"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        // Resize image to standard passport portrait resolution (e.g. max 640px)
+        // This ensures the image transfers within <1s without any cellular/Wi-Fi timeouts
+        let maxDimension: CGFloat = 640.0
+        let scale = min(maxDimension / max(image.size.width, 1.0), maxDimension / max(image.size.height, 1.0), 1.0)
+        let targetSize = CGSize(width: max(round(image.size.width * scale), 100), height: max(round(image.size.height * scale), 100))
         
-        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let resizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+        
+        guard let imageData = resizedImage.jpegData(compressionQuality: 0.75) ?? image.jpegData(compressionQuality: 0.6) else {
             throw NSError(domain: "Upload", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to compress image"])
         }
         
-        var body = Data()
-        // studentId field
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"studentId\"\r\n\r\n".data(using: .utf8)!)
-        body.append("\(studentId)\r\n".data(using: .utf8)!)
+        let base64String = "data:image/jpeg;base64,\(imageData.base64EncodedString())"
         
-        // file field
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"photo\"; filename=\"profile.jpg\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        body.append(imageData)
-        body.append("\r\n".data(using: .utf8)!)
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        request.httpBody = body
+        var payload: [String: Any] = [
+            "studentId": studentId,
+            "photoUrl": base64String,
+            "photoBase64": base64String
+        ]
+        if let r = rollNo, !r.isEmpty {
+            payload["rollNo"] = r
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            throw NSError(domain: "Upload", code: 500, userInfo: [NSLocalizedDescriptionKey: "Photo upload failed"])
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+        
+        if httpResponse.statusCode >= 400 {
+            if let errorObj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let errMsg = errorObj["error"] as? String ?? errorObj["message"] as? String {
+                throw NSError(domain: "Upload", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errMsg])
+            }
+            throw NSError(domain: "Upload", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Photo upload failed (HTTP \(httpResponse.statusCode))"])
         }
         
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let photoUrl = json["photoUrl"] as? String {
             return photoUrl
         }
-        return ""
+        return base64String
     }
     
     // MARK: - Upload Timetable (PDF or Image)

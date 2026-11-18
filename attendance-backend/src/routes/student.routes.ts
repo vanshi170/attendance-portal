@@ -96,19 +96,38 @@ router.get('/dashboard', async (req, res) => {
 // POST /api/student/photo
 router.post('/photo', async (req, res) => {
   try {
-    const { studentId, photoUrl, photoBase64 } = req.body;
-    if (!studentId) {
-      return res.status(400).json({ error: 'studentId is required' });
+    const { studentId, rollNo, photoUrl, photoBase64 } = req.body || {};
+    const finalPhoto = photoUrl || photoBase64;
+
+    if (!studentId && !rollNo) {
+      return res.status(400).json({ error: 'studentId or rollNo is required' });
+    }
+    if (!finalPhoto) {
+      return res.status(400).json({ error: 'photoUrl or photoBase64 is required' });
     }
 
-    const finalPhoto = photoUrl || photoBase64 || `https://api.dicebear.com/7.x/initials/svg?seed=${studentId}`;
+    const cleanRollNo = rollNo ? String(rollNo).trim() : undefined;
+    const cleanStudentId = studentId ? String(studentId).trim() : undefined;
 
-    const student = await prisma.student.update({
-      where: { id: studentId },
+    const student = await prisma.student.findFirst({
+      where: {
+        OR: [
+          ...(cleanStudentId ? [{ id: cleanStudentId }] : []),
+          ...(cleanRollNo ? [{ rollNo: cleanRollNo }] : []),
+        ],
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found in database' });
+    }
+
+    const updated = await prisma.student.update({
+      where: { id: student.id },
       data: { photoUrl: finalPhoto },
     });
 
-    return res.json({ success: true, photoUrl: student.photoUrl });
+    return res.json({ success: true, photoUrl: updated.photoUrl });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Failed to update photo' });
   }

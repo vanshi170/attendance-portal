@@ -9,7 +9,7 @@ struct RegisterView: View {
     @State private var rollNo = ""
     @State private var email = ""
     @State private var password = ""
-    @State private var selectedSection = "AIML-A"
+    @State private var selectedSection = "A"
     @State private var selectedSemester = 1
     
     @State private var isLoading = false
@@ -17,7 +17,7 @@ struct RegisterView: View {
     @State private var registeredStudent: Student?
     @State private var navigateToPhoto = false
     
-    let sections = ["AIML-A", "AIML-B", "CSE-A", "CSE-B", "CS-IT", "ROBOTICS"]
+    let sections = ["A", "B", "C", "D", "E"]
     
     var isPRNValid: Bool {
         rollNo.count == 11 && rollNo.allSatisfy { $0.isNumber }

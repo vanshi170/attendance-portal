@@ -158,7 +158,11 @@ struct PhotoRegistrationView: View {
         
         Task {
             do {
-                let photoUrl = try await APIService.shared.uploadPhoto(studentId: student.id, image: img)
+                let photoUrl = try await APIService.shared.uploadPhoto(
+                    studentId: student.id,
+                    rollNo: student.rollNo,
+                    image: img
+                )
                 await MainActor.run {
                     var updated = student
                     updated.photoUrl = photoUrl
