@@ -38,27 +38,37 @@ export async function POST(request: Request) {
     }
 
     const fullName = `${firstName.trim()} ${lastName.trim()}`;
+    const studentSemester = semester ? parseInt(semester) : 3;
 
-    const studentSemester = semester ? parseInt(semester) : 1;
-
-    // 4. Upsert student record in Neon DB
-    // If student was pre-seeded by rollNo, update their credentials; otherwise create new.
-    const student = await prisma.student.upsert({
+    // 4. Strict PRN existence check in DB (No new unregistered students can be added)
+    const existingStudent = await prisma.student.findUnique({
       where: { rollNo: cleanRollNo },
-      update: {
-        name: fullName,
+    });
+
+    if (!existingStudent) {
+      return NextResponse.json(
+        { error: 'Wrong PRN: Student PRN does not exist in the database.' },
+        { status: 404 }
+      );
+    }
+
+    // 5. Strict Semester 3 check: only semester 3 is allowed
+    if (studentSemester !== 3 || (existingStudent.semester && existingStudent.semester !== 3)) {
+      return NextResponse.json(
+        { error: 'You do not exist in this semester. Students only exist in Semester 3.' },
+        { status: 400 }
+      );
+    }
+
+    // 6. Update existing pre-seeded student record with their credentials
+    const student = await prisma.student.update({
+      where: { id: existingStudent.id },
+      data: {
+        name: fullName || existingStudent.name,
         email: cleanEmail,
         password: String(password),
         section: String(section).toUpperCase(),
-        semester: studentSemester,
-      },
-      create: {
-        rollNo: cleanRollNo,
-        name: fullName,
-        email: cleanEmail,
-        password: String(password),
-        section: String(section).toUpperCase(),
-        semester: studentSemester,
+        semester: 3,
       },
     });
 

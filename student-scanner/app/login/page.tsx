@@ -21,7 +21,7 @@ export default function StudentLoginPage() {
   const [rollNo, setRollNo] = useState('');
   const [email, setEmail] = useState('');
   const [section, setSection] = useState('A');
-  const [semester, setSemester] = useState('1');
+  const [semester, setSemester] = useState('3');
   const [registerPassword, setRegisterPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
@@ -69,6 +69,13 @@ export default function StudentLoginPage() {
     if (!email.trim().toLowerCase().endsWith('@sitnagpur.siu.edu.in')) {
       toast.error('Invalid Email Domain', {
         description: 'You must use your college email ending in @sitnagpur.siu.edu.in',
+      });
+      return;
+    }
+
+    if (String(semester) !== '3') {
+      toast.error('Registration Error', {
+        description: 'You do not exist in this semester. Students only exist in Semester 3.',
       });
       return;
     }

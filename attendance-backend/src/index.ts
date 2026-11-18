@@ -84,7 +84,26 @@ server.listen(PORT, () => {
   
   // Pre-warm database connection on startup to avoid cold-query delays
   prisma.$connect()
-    .then(() => console.log('Prisma database connection initialized & warmed'))
+    .then(async () => {
+      console.log('Prisma database connection initialized & warmed');
+      // Ensure all existing students in DB are aligned to Semester 3 as required
+      try {
+        const updateRes = await prisma.student.updateMany({
+          where: {
+            OR: [
+              { semester: null },
+              { semester: { not: 3 } }
+            ]
+          },
+          data: { semester: 3 }
+        });
+        if (updateRes.count > 0) {
+          console.log(`Updated ${updateRes.count} students to Semester 3`);
+        }
+      } catch (syncErr: any) {
+        console.warn('Student semester sync warning:', syncErr.message);
+      }
+    })
     .catch((err) => console.error('Database connection pre-warm warning:', err.message));
 
   // Self keep-alive ping for cloud free tiers (e.g. Render) to prevent idle sleep

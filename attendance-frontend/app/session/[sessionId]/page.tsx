@@ -247,8 +247,16 @@ export default function SessionPage() {
         {/* Right Panel: Roster */}
         <div className="flex-1 p-6 md:overflow-y-auto custom-scrollbar md:pr-4">
           <div className="max-w-3xl mx-auto space-y-3">
-            <AnimatePresence initial={false}>
-              {sortedRecords.map((record) => (
+            {sortedRecords.length === 0 ? (
+              <div className="bg-white/80 border border-thistle rounded-2xl p-10 text-center shadow-sm space-y-2">
+                <p className="text-ink font-semibold text-base font-sora">No students found for this lecture</p>
+                <p className="text-muted text-xs leading-relaxed max-w-sm mx-auto">
+                  All pre-registered students belong to Semester 3. When Semester 3 is chosen for this lecture, enrolled students will appear here.
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {sortedRecords.map((record) => (
                 <motion.div
                   key={record.id}
                   layout
@@ -322,6 +330,7 @@ export default function SessionPage() {
                 </motion.div>
               ))}
             </AnimatePresence>
+          )}
           </div>
         </div>
       </div>

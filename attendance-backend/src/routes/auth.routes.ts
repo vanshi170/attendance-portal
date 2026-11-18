@@ -23,8 +23,8 @@ router.post('/register', async (req, res) => {
       const cleanEmail = String(req.body.email || '').trim().toLowerCase();
       const rawPassword = String(req.body.password || '');
       const fullName = (req.body.name || `${firstName || ''} ${lastName || ''}`).trim();
-      const studentSection = String(section || 'AIML-A').toUpperCase();
-      const studentSemester = semester ? parseInt(semester) : 1;
+      const studentSection = String(section || 'A').toUpperCase();
+      const studentSemester = semester ? parseInt(semester) : 3;
 
       if (!cleanRollNo || !/^\d{11}$/.test(cleanRollNo)) {
         return res.status(400).json({ error: 'PRN must be an exact 11-digit number (e.g. 25070521001).' });
@@ -40,22 +40,35 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 6 characters.' });
       }
 
-      const student = await prisma.student.upsert({
+      // 1. Strict PRN existence check in DB (No new unregistered students can be added)
+      const existingStudent = await prisma.student.findUnique({
         where: { rollNo: cleanRollNo },
-        update: {
-          name: fullName || 'Student',
+      });
+
+      if (!existingStudent) {
+        return res.status(404).json({
+          error: 'Wrong PRN: Student does not exist in the database.',
+          message: 'Wrong PRN: Student does not exist in the database.',
+        });
+      }
+
+      // 2. Strict Semester 3 check: only semester 3 is allowed
+      if (studentSemester !== 3 || (existingStudent.semester && existingStudent.semester !== 3)) {
+        return res.status(400).json({
+          error: 'You do not exist in this semester. Students only exist in Semester 3.',
+          message: 'You do not exist in this semester. Students only exist in Semester 3.',
+        });
+      }
+
+      // 3. Update existing pre-seeded student record with their credentials
+      const student = await prisma.student.update({
+        where: { id: existingStudent.id },
+        data: {
+          name: fullName || existingStudent.name,
           email: cleanEmail,
           password: rawPassword,
           section: studentSection,
-          semester: studentSemester,
-        },
-        create: {
-          rollNo: cleanRollNo,
-          name: fullName || 'Student',
-          email: cleanEmail,
-          password: rawPassword,
-          section: studentSection,
-          semester: studentSemester,
+          semester: 3,
         },
       });
 

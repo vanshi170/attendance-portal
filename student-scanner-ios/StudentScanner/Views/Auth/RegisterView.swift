@@ -10,7 +10,7 @@ struct RegisterView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var selectedSection = "A"
-    @State private var selectedSemester = 1
+    @State private var selectedSemester = 3
     
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -223,6 +223,10 @@ struct RegisterView: View {
     
     private func handleRegister() {
         guard isPRNValid && isEmailValid else { return }
+        if selectedSemester != 3 {
+            self.errorMessage = "You do not exist in this semester. Students only exist in Semester 3."
+            return
+        }
         isLoading = true
         errorMessage = nil
         

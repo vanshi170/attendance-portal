@@ -121,9 +121,14 @@ router.post('/start', requireAuth, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Session already active for this lecture', sessionId: existingSession.id });
     }
 
-    // Find students for the given section
+    // Find students for the given section AND lecture semester
+    // (Students in DB are of Semester 3; if teacher chooses Semester 3, students appear; if another semester, empty)
+    const lectureSemester = lecture.semester || 1;
     const students = await prisma.student.findMany({
-      where: { section: String(section) },
+      where: {
+        section: String(section),
+        semester: lectureSemester
+      },
       orderBy: { rollNo: 'asc' }
     });
 
